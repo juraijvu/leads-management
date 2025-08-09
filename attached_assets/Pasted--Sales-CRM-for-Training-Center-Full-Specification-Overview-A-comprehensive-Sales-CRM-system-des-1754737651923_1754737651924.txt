@@ -1,0 +1,275 @@
+
+Sales CRM for Training Center - Full Specification
+Overview
+A comprehensive Sales CRM system designed specifically for training centers to manage leads, track sales pipeline, schedule meetings, manage courses, handle corporate training, track students, and send automated messages. The application will be built using HTML/CSS with Bootstrap for responsive design, JavaScript for interactive functionality, and Django (Python) for the backend with Postgresql database Local Databse integration.
+
+Core Sections & User Interactions
+1. Leads Section
+Lead List View
+Main Dashboard: Clean, Bootstrap-styled table displaying all leads with responsive design
+Table Columns: Name, Phone, Email, Course Interest, Lead Source, Status, Last Contact Date
+Visual Status Indicators: Bootstrap badge components with color coding (New-blue, Contacted-yellow, Interested-orange, Quoted-purple, Converted-green, Lost-red)
+Quick Actions: Icon buttons in each row for Call, WhatsApp, Email, Edit using Bootstrap button groups
+Search Bar: Real-time JavaScript search functionality across all visible lead fields
+Filter Panel:
+Bootstrap dropdown filters for Status, Course Interest, Lead Source, Date Range
+Advanced collapsible filter section for Quoted Amount range and Follow-up dates
+Save custom filter presets with local storage
+Lead Creation Form
+Bootstrap Modal: Pop-up form for adding new leads
+Form Fields:
+Name (required text input with validation)
+Phone Number (formatted input with pattern validation)
+WhatsApp Number (optional, auto-populated from phone)
+Email (email validation)
+Course Selection: Bootstrap select dropdown populated from course database
+Lead Source: Dropdown with predefined options and custom entry
+Form Validation: Real-time JavaScript validation with Bootstrap styling
+Submit Actions: Save & Close or Save & Add Another options
+Lead Detail View
+Header Section: Lead name with inline editing capability using JavaScript
+Two-Column Layout:
+Left Panel:
+Contact information cards with click-to-edit functionality
+Course interest section with pricing display
+Lead source and acquisition timeline
+Right Panel:
+Quote Management: Currency-formatted input with calculation features
+Follow-up Scheduler:
+Bootstrap date picker for next follow-up
+Status dropdown with color indicators
+Follow-up type selection (Call, Email, WhatsApp, Meeting)
+Comments Timeline:
+Scrollable section with chronological interaction history
+Add comment form with rich text editor
+Star/flag important comments with JavaScript toggle
+User attribution and timestamp display
+Action Buttons: Bootstrap button group for Convert to Student, Schedule Meeting, Send Message, Delete Lead
+2. Pipeline Section
+Sales Dashboard
+Pipeline Visualization: Interactive funnel chart using JavaScript charting library
+Metrics Cards: Bootstrap card components displaying:
+Total Leads counter with animated numbers
+Conversion Rate percentage with progress bars
+Average Deal Size with currency formatting
+Monthly and Projected Revenue with trend indicators
+Drag-and-Drop Pipeline:
+JavaScript-powered drag interface for moving leads between stages
+Visual feedback during drag operations
+Automatic status updates and database sync
+Analytics Charts:
+Monthly revenue line charts
+Course performance pie charts
+Lead source effectiveness bar charts
+Conversion timeline with interactive data points
+Sales Projections:
+Calculator interface with adjustable probability sliders
+Real-time projection updates based on current pipeline
+3. Meeting Section
+Meeting Calendar Interface
+Calendar Grid: JavaScript calendar widget with Bootstrap styling
+View Options: Toggle buttons for Monthly, Weekly, Daily views
+Meeting Cards: Hover-enabled cards showing lead name, type, time, status
+Color Coding: Different colors for meeting types and statuses
+Quick Actions: Click to reschedule, cancel, or add notes
+Schedule Meeting Modal
+Lead Selection: Searchable dropdown with autocomplete functionality
+Meeting Configuration:
+Type selection with radio buttons (Online/Offline)
+Date picker with available time slot highlighting
+Duration dropdown with preset options
+Dynamic Fields:
+Meeting link input (appears for Online meetings)
+Location input (appears for Offline meetings)
+Agenda Section: Expandable text area with character counter
+Reminder Settings: Checkbox options with time selection dropdowns
+Meeting Detail Page
+Meeting Header: Status badge and quick edit options
+Information Panels: Organized sections for all meeting details
+Attendee Management: Status tracking with update buttons
+Notes Section: Post-meeting notes with rich text formatting
+Follow-up Actions: Quick action buttons for next steps
+4. Course Details Section
+Course Management Grid
+Card Layout: Bootstrap card grid with course thumbnails
+Course Information: Name, price, duration, enrollment count on each card
+Quick Actions: Edit, Duplicate, Archive buttons on hover
+Search and Filter: Real-time course filtering by category, price range, status
+Course Form Interface
+Tabbed Layout: Bootstrap tabs for different course sections
+Basic Information Tab:
+Course name with slug generation
+Price input with currency formatting
+Duration selector (weeks/months/days)
+Category dropdown with add-new option
+Content Management Tab:
+Drag-and-drop file upload area
+Progress bars for upload status
+File preview and management interface
+Key Points Tab:
+Dynamic list with add/remove buttons
+Drag-and-drop reordering with visual feedback
+Rich text editor for each point
+Settings Tab: Active/Inactive toggle with scheduling options
+Course Analytics View
+Enrollment Dashboard: Charts showing enrollment trends
+Revenue Tracking: Course-specific revenue analytics
+Student Progress: Aggregate progress statistics
+Content Usage: Analytics on which materials are accessed most
+5. Corporate Training Section
+Corporate Dashboard
+Company Grid: Card-based layout for corporate clients
+Deal Pipeline: Separate pipeline view for corporate deals
+Revenue Metrics: Corporate-specific analytics and projections
+Team Size Analytics: Charts showing typical corporate training sizes
+Corporate Lead Form
+Multi-Step Form: Progressive disclosure with step indicators
+Company Information Step:
+Company name with autocomplete from existing database
+Industry selection with custom entry option
+Company size range slider
+Contact Details Step:
+Contact person information with role/designation
+Multiple contact methods with validation
+Training Requirements Step:
+Multi-select course dropdown with search
+Trainee count with bulk discount calculation
+Training mode selection with conditional fields
+Schedule preference with calendar integration
+Budget and Requirements Step:
+Budget range slider with custom input option
+Special requirements text area with formatting
+Corporate Deal Management
+Deal Overview Dashboard: Complete deal information with edit capabilities
+Training Configuration: Course selection with individual and bulk pricing
+Team Management Interface:
+Trainee list with individual progress tracking
+Bulk enrollment and communication tools
+Progress dashboard with team analytics
+Document Management: Contract upload/download with version control
+Communication Hub: Centralized communication with all stakeholders
+6. Student Tracking Section
+Student Management Dashboard
+Student Table: Sortable, filterable table with pagination
+Progress Indicators: Visual progress bars and completion percentages
+Attendance Tracking: Color-coded attendance indicators
+Quick Actions: Bulk operations for selected students
+Advanced Filters: Multi-criteria filtering with saved filter sets
+Lead to Student Conversion
+Conversion Wizard: Step-by-step process with progress indicator
+Information Transfer: Auto-populated form from lead data
+Course Enrollment: Batch and schedule assignment
+Payment Setup: Fee structure and payment plan configuration
+Welcome Process: Automated welcome message and document generation
+Student Profile Interface
+Profile Header: Photo, contact info, and key metrics
+Tabbed Content:
+Academic Tab: Course progress, grades, assignments
+Attendance Tab: Calendar view with attendance patterns
+Communications Tab: Message history and scheduled communications
+Documents Tab: File management for certificates, projects, ID proofs
+Payments Tab: Fee tracking and payment history
+Quick Actions Sidebar: Common tasks and communication options
+7. Message Templates Section
+Template Library
+Grid Layout: Template cards with preview thumbnails
+Category Filters: Organize templates by purpose and course type
+Search Functionality: Find templates by content or name
+Usage Analytics: Track which templates are most effective
+Template Editor
+Rich Text Editor: WYSIWYG editor with formatting options
+Variable Insertion: Dropdown menu for available placeholders
+Preview Panel: Real-time preview with sample data
+Template Testing: Send test messages to verify formatting
+Version Control: Save multiple versions of templates
+Message Sending Interface
+Recipient Selection: Multi-select with filtering and grouping options
+Template Customization: Edit template content before sending
+Scheduling Options: Send now or schedule for optimal timing
+Delivery Tracking: Monitor message delivery and read status
+Response Management: Handle replies and track engagement
+8. Settings Section
+General Configuration
+Company Profile: Logo upload, contact information, branding settings
+Business Settings: Operating hours, time zones, currency preferences
+System Preferences: Date formats, number formats, language settings
+Notification Settings: Email and system notification preferences
+User Management Interface
+User List: Table with user roles, status, and last activity
+Role Management: Define permissions for different user types
+Access Control: Granular permissions for each system section
+User Activity: Login history and action logs
+System Configuration
+Dropdown Management: Customize lead sources, statuses, course categories
+Workflow Settings: Configure automation rules and triggers
+Integration Settings: API keys and third-party service configurations
+Backup Settings: Automated backup scheduling and management
+9. Reports Section
+Report Dashboard
+Report Categories: Organized sections for different report types
+Quick Reports: Pre-configured reports with one-click generation
+Custom Report Builder: Drag-and-drop interface for creating custom reports
+Scheduled Reports: Automated report generation and delivery
+Sales Analytics
+Revenue Dashboard: Interactive charts with drill-down capabilities
+Conversion Analytics: Funnel analysis with conversion tracking
+Performance Metrics: Individual and team performance comparisons
+Forecasting: Predictive analytics based on historical data
+Operational Reports
+Student Progress: Batch-wise and individual progress tracking
+Attendance Analytics: Patterns and trends in class attendance
+Task Management: Follow-up tracking and task completion rates
+Corporate Training: Team progress and corporate client analytics
+Export and Sharing
+Multiple Formats: PDF, Excel, CSV export options with formatting
+Email Delivery: Direct email sending with report attachments
+Print Optimization: Print-friendly report layouts
+Data Visualization: Interactive charts that can be embedded or shared
+Enhanced User Experience Features
+Navigation and Interface
+Responsive Navigation: Bootstrap navbar with mobile-friendly hamburger menu
+Breadcrumb Navigation: Clear path indication for deep navigation
+Quick Access Toolbar: Customizable shortcuts for frequently used features
+Search Everything: Global search functionality across all data types
+Data Entry and Validation
+Smart Forms: Auto-complete and suggestion features for faster data entry
+Real-time Validation: Immediate feedback on form inputs with Bootstrap styling
+Bulk Operations: Select multiple items for batch operations
+Keyboard Shortcuts: Power user shortcuts for common actions
+Communication Features
+Integrated Messaging: Send messages without leaving the current page
+Communication History: Complete timeline of all interactions
+Template Suggestions: AI-suggested templates based on context
+Follow-up Automation: Automatic scheduling of follow-up tasks
+Mobile Experience
+Touch-Optimized: Large buttons and touch-friendly interface elements
+Swipe Gestures: Intuitive swipe actions for mobile navigation
+Offline Capability: Basic functionality when internet connection is limited
+Progressive Web App: App-like experience on mobile devices
+Third-Party Technologies and Integrations
+SMS Gateway: Integration with SMS providers for sending notifications, reminders, and alerts
+File Management and Storage
+File Upload Handling: Server-side file processing for course materials, student documents, and profile images
+Document Generation: PDF generation libraries for certificates, reports, and contracts
+Image Processing: Automatic image optimization and thumbnail generation for uploaded files
+Calendar and Scheduling
+Calendar Integration: Google Calendar or Outlook API integration for synchronizing meetings and schedules
+Video Conferencing: Zoom, Google Meet, or Microsoft Teams API for generating meeting links automatically
+Time Zone Management: Libraries for handling multiple time zones for global corporate clients
+Analytics and Reporting
+Chart Libraries: JavaScript charting libraries (Chart.js, D3.js) for interactive dashboards and analytics
+Export Libraries: Server-side libraries for generating Excel, CSV, and PDF reports
+Data Visualization: Advanced charting capabilities for sales analytics and student progress tracking
+Payment Processing
+Payment Gateway Integration: Support for payment processors to handle course fees and corporate training payments
+Invoice Generation: Automated invoice creation and payment tracking
+Subscription Management: Recurring payment handling for ongoing corporate training programs
+Database and Performance
+SQL Database Optimization: Efficient query handling and database indexing for fast data retrieval
+Caching Solutions: Implementation of caching mechanisms for improved performance
+Data Backup: Automated backup solutions for data protection and recovery
+Security and Authentication
+User Authentication: Secure login system with role-based access control
+Data Encryption: Encryption for sensitive data like contact information and payment details
+API Security: Secure API endpoints for third-party integrations
+This specification provides a comprehensive guide for developing a fully-functional Sales CRM system tailored for training centers, with emphasis on user experience, practical workflow management, and seamless integration with essential third-party services.
