@@ -9,11 +9,15 @@ from app import db
 from models import *
 from forms import *
 
+
 main = Blueprint('main', __name__)
 
 @main.route('/')
 @login_required
 def dashboard():
+    form = LeadForm()  # Create a LeadForm instance
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
     # Dashboard statistics
     total_leads = Lead.query.count()
     total_students = Student.query.count()
@@ -27,7 +31,7 @@ def dashboard():
         Lead.status, func.count(Lead.id)
     ).group_by(Lead.status).all()
     
-    # Monthly revenue (from converted students)
+    # Monthly revenue
     monthly_revenue = db.session.query(
         func.sum(Student.fee_paid)
     ).filter(
@@ -40,7 +44,8 @@ def dashboard():
                          total_courses=total_courses,
                          recent_leads=recent_leads,
                          pipeline_data=pipeline_data,
-                         monthly_revenue=monthly_revenue)
+                         monthly_revenue=monthly_revenue,
+                         form=form)  # Pass the form
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -67,6 +72,9 @@ def logout():
 @main.route('/leads')
 @login_required
 def leads():
+    form = LeadForm()  # Create a LeadForm instance
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
     status_filter = request.args.get('status', '')
@@ -101,13 +109,23 @@ def leads():
                          statuses=statuses,
                          search=search,
                          status_filter=status_filter,
-                         course_filter=course_filter)
+                         course_filter=course_filter,
+                         form=form)  # Pass the form
 
 @main.route('/leads/add', methods=['GET', 'POST'])
 @login_required
 def add_lead():
     form = LeadForm()
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    # Debug: Check if courses exist
+    all_courses = Course.query.all()
+    active_courses = Course.query.filter_by(is_active=True).all()
+    print(f"Total courses: {len(all_courses)}")
+    print(f"Active courses: {len(active_courses)}")
+    for course in active_courses:
+        print(f"Course: {course.id} - {course.name} - Active: {course.is_active}")
+    
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in active_courses]
     
     if form.validate_on_submit():
         lead = Lead(
@@ -178,6 +196,9 @@ def convert_lead(id):
 @main.route('/pipeline')
 @login_required
 def pipeline():
+    form = LeadForm()  # Create a LeadForm instance
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
     # Get pipeline data grouped by status
     pipeline_data = db.session.query(
         Lead.status,
@@ -207,7 +228,8 @@ def pipeline():
     return render_template('pipeline.html',
                          pipeline_data=pipeline_dict,
                          leads_by_status=leads_by_status,
-                         statuses=statuses)
+                         statuses=statuses,
+                         form=form)  # Pass the form
 
 @main.route('/meetings')
 @login_required
@@ -216,11 +238,22 @@ def meetings():
     today = date.today()
     start_of_month = today.replace(day=1)
     
+    # Calculate week boundaries (Monday to Sunday)
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    
     meetings = Meeting.query.filter(
         Meeting.meeting_date >= start_of_month
     ).order_by(Meeting.meeting_date).all()
     
-    return render_template('meetings.html', meetings=meetings)
+    # Format current date for calendar title
+    current_date = today.strftime('%B %Y')
+    
+    return render_template('meetings.html',
+                         meetings=meetings,
+                         current_date=current_date,
+                         week_start=week_start,
+                         week_end=week_end)
 
 @main.route('/meetings/add', methods=['GET', 'POST'])
 @login_required
@@ -287,7 +320,8 @@ def add_course():
         flash('Course added successfully!', 'success')
         return redirect(url_for('main.courses'))
     
-    return render_template('modals/course_modal.html', form=form, title='Add New Course')
+    # Change this line to render a full page instead of modal
+    return render_template('add_course.html', form=form, title='Add New Course')
 
 @main.route('/students')
 @login_required
@@ -372,31 +406,47 @@ def messages():
 @main.route('/reports')
 @login_required
 def reports():
-    # Generate basic reports data
-    
-    # Monthly lead generation
-    monthly_leads = db.session.query(
-        func.strftime('%Y-%m', Lead.created_at).label('month'),
-        func.count(Lead.id).label('count')
-    ).group_by(func.strftime('%Y-%m', Lead.created_at)).limit(12).all()
-    
-    # Conversion rates by source
+    # Date range handling
+    default_date_from = (date.today() - timedelta(days=30)).strftime('%Y-%m-%d')
+    default_date_to = date.today().strftime('%Y-%m-%d')
+    date_from = request.args.get('date_from', default_date_from)
+    date_to = request.args.get('date_to', default_date_to)
+
+    # Monthly leads
+    monthly_leads = Lead.query.filter(
+        Lead.created_at.between(date_from, date_to)
+    ).all()
+
+    # Conversion by source
     conversion_by_source = db.session.query(
         Lead.lead_source,
         func.count(Lead.id).label('total'),
-        func.sum(func.case([(Lead.status == 'Converted', 1)], else_=0)).label('converted')
+        func.sum(db.cast(Lead.status == 'Converted', db.Integer)).label('converted')
+    ).filter(
+        Lead.created_at.between(date_from, date_to)
     ).group_by(Lead.lead_source).all()
-    
+
     # Course popularity
     course_popularity = db.session.query(
         Course.name,
         func.count(Student.id).label('enrollments')
-    ).join(Student).group_by(Course.name).order_by(desc(func.count(Student.id))).all()
-    
+    ).join(Student).filter(
+        Student.enrollment_date.between(date_from, date_to)
+    ).group_by(Course.name).all()
+
+    # Monthly lead trends (fixed for MySQL)
+    monthly_trends = db.session.query(
+        func.date_format(Lead.created_at, '%Y-%m').label('month'),
+        func.count(Lead.id).label('count')
+    ).group_by(func.date_format(Lead.created_at, '%Y-%m')).limit(12).all()
+
     return render_template('reports.html',
                          monthly_leads=monthly_leads,
                          conversion_by_source=conversion_by_source,
-                         course_popularity=course_popularity)
+                         course_popularity=course_popularity,
+                         monthly_trends=monthly_trends,
+                         date_from=date_from,
+                         date_to=date_to)
 
 @main.route('/settings')
 @login_required

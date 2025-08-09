@@ -52,7 +52,13 @@
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="dashboard-card">
             <div class="stat-card">
-                <div class="stat-number text-info">{{ courses | sum(attribute='students') | length if courses else 0 }}</div>
+                <div class="stat-number text-info">
+                    {% set total_students = 0 %}
+                    {% for course in courses %}
+                        {% set total_students = total_students + (course.students | length) %}
+                    {% endfor %}
+                    {{ total_students }}
+                </div>
                 <div class="stat-label">Total Students</div>
             </div>
         </div>
@@ -61,13 +67,18 @@
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="dashboard-card">
             <div class="stat-card">
-                <div class="stat-number text-warning">${{ "{:,.0f}".format(courses | sum(attribute='price') if courses else 0) }}</div>
+                <div class="stat-number text-warning">
+                    ${% set total_value = 0 %}
+                    {% for course in courses %}
+                        {% set total_value = total_value + course.price %}
+                    {% endfor %}
+                    {{ "{:,.0f}".format(total_value) }}
+                </div>
                 <div class="stat-label">Total Value</div>
             </div>
         </div>
     </div>
 </div>
-
 <!-- Search and Filter -->
 <div class="search-filter-bar mb-4">
     <div class="row align-items-center">

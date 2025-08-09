@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Course - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item"><a href="{{ url_for('main.courses') }}">Courses</a></li>
+<li class="breadcrumb-item active">Add New Course</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h4 class="mb-0">Create New Course</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.add_course') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Basic Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="section-title">Basic Information</h5>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                            {% if form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.name.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows="4") }}
+                            <small class="form-text text-muted">0/1000 characters</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.price.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else "")) }}
+                            </div>
+                            {% if form.price.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.price.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            {{ form.duration.label(class="form-label") }}
+                            {{ form.duration(class="form-control") }}
+                        </div>
+                        
+                        <div class="col-md-3 mb-3">
+                            {{ form.duration_type.label(class="form-label") }}
+                            {{ form.duration_type(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-control") }}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.max_students.label(class="form-label") }}
+                            {{ form.max_students(class="form-control") }}
+                        </div>
+                    </div>
+                    
+                    <!-- Course Status -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="section-title">Settings</h5>
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <div class="form-check form-switch">
+                                {{ form.is_active(class="form-check-input") }}
+                                {{ form.is_active.label(class="form-check-label") }}
+                                <small class="form-text text-muted d-block">Course is visible and available for enrollment</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.courses') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Course
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Character counter for description
+document.addEventListener('DOMContentLoaded', function() {
+    const descriptionField = document.querySelector('textarea[name="description"]');
+    const charCounter = document.querySelector('.form-text');
+    
+    if (descriptionField && charCounter) {
+        descriptionField.addEventListener('input', function() {
+            const length = this.value.length;
+            charCounter.textContent = `${length}/1000 characters`;
+            
+            if (length > 1000) {
+                charCounter.classList.add('text-danger');
+            } else {
+                charCounter.classList.remove('text-danger');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

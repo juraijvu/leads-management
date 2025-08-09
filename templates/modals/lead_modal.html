@@ -11,6 +11,7 @@
             </div>
             
             <form method="POST" action="{{ url_for('main.add_lead') }}" id="leadForm" class="auto-save-form">
+                {{ form.csrf_token }}
                 <div class="modal-body">
                     <!-- Personal Information -->
                     <div class="section-header mb-3">
@@ -59,10 +60,10 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="course_interest_id" name="course_interest_id">
-                                    <option value="">Select Course</option>
-                                    <!-- Options will be populated dynamically -->
-                                </select>
+                                <div class="form-floating mb-3">
+    {{ form.course_interest_id(class="form-select", id="course_interest_id") }}
+    
+</div>
                                 <label for="course_interest_id">Course Interest</label>
                             </div>
                         </div>

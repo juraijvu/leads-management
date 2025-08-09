@@ -1,0 +1,1166 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrainingCenter CRM - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0066CC;
+            --sidebar-width: 280px;
+            --status-new: #17A2B8;
+            --status-contacted: #FFC107;
+            --status-interested: #FD7E14;
+            --status-quoted: #6F42C1;
+            --status-converted: #28A745;
+            --status-lost: #DC3545;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            overflow-x: hidden;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar .nav-link {
+            color: #CBD5E1;
+            padding: 12px 24px;
+            margin: 4px 16px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 12px;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        
+        .top-navbar {
+            background: white;
+            border-bottom: 1px solid #E2E8F0;
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        
+        .content-area {
+            padding: 24px;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #E2E8F0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+        
+        .status-new { background-color: var(--status-new); color: white; }
+        .status-contacted { background-color: var(--status-contacted); color: #212529; }
+        .status-interested { background-color: var(--status-interested); color: white; }
+        .status-quoted { background-color: var(--status-quoted); color: white; }
+        .status-converted { background-color: var(--status-converted); color: white; }
+        .status-lost { background-color: var(--status-lost); color: white; }
+        
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            background: white;
+            color: #64748B;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            margin: 0 2px;
+        }
+        
+        .action-btn:hover {
+            background: #F1F5F9;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .filter-chip {
+            background: #F1F5F9;
+            border: 1px solid #E2E8F0;
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            margin: 0 4px 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-chip:hover, .filter-chip.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box .form-control {
+            padding-left: 40px;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748B;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #E2E8F0;
+            overflow: hidden;
+        }
+        
+        .table th {
+            background: #F8FAFC;
+            border: none;
+            font-weight: 600;
+            color: #374151;
+            padding: 16px;
+        }
+        
+        .table td {
+            padding: 16px;
+            border-color: #F1F5F9;
+            vertical-align: middle;
+        }
+        
+        .table tbody tr:hover {
+            background-color: #F8FAFC;
+        }
+        
+        .logo {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 24px;
+            display: block;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 24px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+        }
+        
+        .pipeline-stage {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            min-height: 400px;
+        }
+        
+        .pipeline-item {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: move;
+            transition: all 0.2s ease;
+        }
+        
+        .pipeline-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <a href="#" class="logo">
+            <i class="fas fa-graduation-cap me-2"></i>
+            TrainingCenter CRM
+        </a>
+        
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="leads">
+                    <i class="fas fa-users"></i>
+                    Leads Management
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="pipeline">
+                    <i class="fas fa-funnel-dollar"></i>
+                    Sales Pipeline
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="meetings">
+                    <i class="fas fa-calendar-alt"></i>
+                    Meetings
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="courses">
+                    <i class="fas fa-book-open"></i>
+                    Course Management
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="corporate">
+                    <i class="fas fa-building"></i>
+                    Corporate Training
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="students">
+                    <i class="fas fa-user-graduate"></i>
+                    Student Tracking
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="messages">
+                    <i class="fas fa-envelope"></i>
+                    Message Templates
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="reports">
+                    <i class="fas fa-chart-bar"></i>
+                    Reports & Analytics
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Navigation Bar -->
+        <nav class="top-navbar">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-outline-secondary d-lg-none me-3" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0" id="pageTitle">Dashboard Overview</h5>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="search-box me-3">
+                        <input type="text" class="form-control" placeholder="Search everything..." style="width: 300px;">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            John Smith
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="content-section">
+                <!-- Metrics Row -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card metric-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">Total Leads</h6>
+                                        <h3 class="card-title mb-0" data-mock="true">1,247</h3>
+                                        <small class="text-success">
+                                            <i class="fas fa-arrow-up"></i> +12% this month
+                                        </small>
+                                    </div>
+                                    <div class="text-primary">
+                                        <i class="fas fa-users fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card metric-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">Conversion Rate</h6>
+                                        <h3 class="card-title mb-0" data-mock="true">24.8%</h3>
+                                        <small class="text-success">
+                                            <i class="fas fa-arrow-up"></i> +3.2% this month
+                                        </small>
+                                    </div>
+                                    <div class="text-success">
+                                        <i class="fas fa-chart-line fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card metric-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">Monthly Revenue</h6>
+                                        <h3 class="card-title mb-0" data-mock="true">₹8,42,000</h3>
+                                        <small class="text-success">
+                                            <i class="fas fa-arrow-up"></i> +18% this month
+                                        </small>
+                                    </div>
+                                    <div class="text-warning">
+                                        <i class="fas fa-rupee-sign fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card metric-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">Active Students</h6>
+                                        <h3 class="card-title mb-0" data-mock="true">2,156</h3>
+                                        <small class="text-success">
+                                            <i class="fas fa-arrow-up"></i> +8% this month
+                                        </small>
+                                    </div>
+                                    <div class="text-info">
+                                        <i class="fas fa-user-graduate fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions and Recent Activity -->
+                <div class="row mb-4">
+                    <div class="col-lg-8">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Recent Leads Activity</h6>
+                                <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <tbody>
+                                            <tr data-mock="true">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-success rounded-circle me-3" style="width: 8px; height: 8px;"></div>
+                                                        <strong>Sarah Johnson</strong>
+                                                    </div>
+                                                </td>
+                                                <td>Python Development</td>
+                                                <td><span class="status-badge status-interested">Interested</span></td>
+                                                <td class="text-muted">2 hours ago</td>
+                                            </tr>
+                                            <tr data-mock="true">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-warning rounded-circle me-3" style="width: 8px; height: 8px;"></div>
+                                                        <strong>Michael Chen</strong>
+                                                    </div>
+                                                </td>
+                                                <td>Data Science Bootcamp</td>
+                                                <td><span class="status-badge status-contacted">Contacted</span></td>
+                                                <td class="text-muted">4 hours ago</td>
+                                            </tr>
+                                            <tr data-mock="true">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-primary rounded-circle me-3" style="width: 8px; height: 8px;"></div>
+                                                        <strong>Emily Rodriguez</strong>
+                                                    </div>
+                                                </td>
+                                                <td>Web Design Course</td>
+                                                <td><span class="status-badge status-new">New</span></td>
+                                                <td class="text-muted">6 hours ago</td>
+                                            </tr>
+                                            <tr data-mock="true">
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-success rounded-circle me-3" style="width: 8px; height: 8px;"></div>
+                                                        <strong>David Thompson</strong>
+                                                    </div>
+                                                </td>
+                                                <td>Machine Learning</td>
+                                                <td><span class="status-badge status-converted">Converted</span></td>
+                                                <td class="text-muted">1 day ago</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">Quick Actions</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-primary" onclick="showSection('leads')">
+                                        <i class="fas fa-plus me-2"></i>Add New Lead
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="showSection('meetings')">
+                                        <i class="fas fa-calendar me-2"></i>Schedule Meeting
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="showSection('courses')">
+                                        <i class="fas fa-book me-2"></i>Add Course
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="showSection('messages')">
+                                        <i class="fas fa-envelope me-2"></i>Send Messages
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads Section -->
+            <div id="leads-section" class="content-section d-none">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4>Leads Management</h4>
+                        <p class="text-muted mb-0">Track and manage your potential students</p>
+                    </div>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLeadModal">
+                        <i class="fas fa-plus me-2"></i>Add New Lead
+                    </button>
+                </div>
+
+                <!-- Filters and Search -->
+                <div class="row mb-4">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="search-box">
+                                            <input type="text" class="form-control" placeholder="Search leads by name, email, phone...">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="d-flex gap-2">
+                                            <select class="form-select">
+                                                <option>All Status</option>
+                                                <option>New</option>
+                                                <option>Contacted</option>
+                                                <option>Interested</option>
+                                                <option>Quoted</option>
+                                                <option>Converted</option>
+                                                <option>Lost</option>
+                                            </select>
+                                            <select class="form-select">
+                                                <option>All Courses</option>
+                                                <option>Python Development</option>
+                                                <option>Data Science</option>
+                                                <option>Web Design</option>
+                                                <option>Machine Learning</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <span class="filter-chip active">All</span>
+                                    <span class="filter-chip">Today</span>
+                                    <span class="filter-chip">This Week</span>
+                                    <span class="filter-chip">This Month</span>
+                                    <span class="filter-chip">High Priority</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="text-primary">
+                                            <i class="fas fa-users fa-lg"></i>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">Total</small>
+                                            <div class="fw-bold" data-mock="true">1,247</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-success">
+                                            <i class="fas fa-check-circle fa-lg"></i>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">Converted</small>
+                                            <div class="fw-bold" data-mock="true">309</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="text-warning">
+                                            <i class="fas fa-clock fa-lg"></i>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">Pending</small>
+                                            <div class="fw-bold" data-mock="true">128</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leads Table -->
+                <div class="table-container">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" class="form-check-input">
+                                </th>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Course Interest</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Last Contact</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody data-mock="true">
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div>
+                                        <strong>Sarah Johnson</strong>
+                                        <br><small class="text-muted">ID: #L2024001</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>+91 98765 43210</div>
+                                        <small class="text-muted">sarah.j@email.com</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">Python Development</span>
+                                    <br><small class="text-muted">₹25,000</small>
+                                </td>
+                                <td>Website</td>
+                                <td><span class="status-badge status-interested">Interested</span></td>
+                                <td>
+                                    <div>2 hours ago</div>
+                                    <small class="text-muted">Phone Call</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        <button class="action-btn" title="Call">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                        <button class="action-btn" title="WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                        <button class="action-btn" title="Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="action-btn" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div>
+                                        <strong>Michael Chen</strong>
+                                        <br><small class="text-muted">ID: #L2024002</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>+91 87654 32109</div>
+                                        <small class="text-muted">m.chen@email.com</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">Data Science Bootcamp</span>
+                                    <br><small class="text-muted">₹45,000</small>
+                                </td>
+                                <td>Referral</td>
+                                <td><span class="status-badge status-contacted">Contacted</span></td>
+                                <td>
+                                    <div>4 hours ago</div>
+                                    <small class="text-muted">Email</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        <button class="action-btn" title="Call">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                        <button class="action-btn" title="WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                        <button class="action-btn" title="Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="action-btn" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div>
+                                        <strong>Emily Rodriguez</strong>
+                                        <br><small class="text-muted">ID: #L2024003</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>+91 76543 21098</div>
+                                        <small class="text-muted">emily.r@email.com</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">Web Design Course</span>
+                                    <br><small class="text-muted">₹20,000</small>
+                                </td>
+                                <td>Social Media</td>
+                                <td><span class="status-badge status-new">New</span></td>
+                                <td>
+                                    <div>6 hours ago</div>
+                                    <small class="text-muted">Form Submit</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        <button class="action-btn" title="Call">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                        <button class="action-btn" title="WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                        <button class="action-btn" title="Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="action-btn" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input"></td>
+                                <td>
+                                    <div>
+                                        <strong>David Thompson</strong>
+                                        <br><small class="text-muted">ID: #L2024004</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>+91 65432 10987</div>
+                                        <small class="text-muted">david.t@email.com</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">Machine Learning</span>
+                                    <br><small class="text-muted">₹50,000</small>
+                                </td>
+                                <td>Google Ads</td>
+                                <td><span class="status-badge status-converted">Converted</span></td>
+                                <td>
+                                    <div>1 day ago</div>
+                                    <small class="text-muted">Meeting</small>
+                                </td>
+                                <td>
+                                    <div class="d-flex">
+                                        <button class="action-btn" title="Call">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                        <button class="action-btn" title="WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                        <button class="action-btn" title="Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="action-btn" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="text-muted">
+                        Showing 1 to 4 of 1,247 entries
+                    </div>
+                    <nav>
+                        <ul class="pagination mb-0">
+                            <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                            <li class="page-item"><a class="page-link" href="#">2</a></li>
+                            <li class="page-item"><a class="page-link" href="#">3</a></li>
+                            <li class="page-item"><a class="page-link" href="#">Next</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Pipeline Section -->
+            <div id="pipeline-section" class="content-section d-none">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4>Sales Pipeline</h4>
+                        <p class="text-muted mb-0">Visual representation of your sales process</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <select class="form-select" style="width: auto;">
+                            <option>This Month</option>
+                            <option>Last Month</option>
+                            <option>This Quarter</option>
+                        </select>
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-download me-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pipeline Overview -->
+                <div class="row mb-4">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Pipeline Stages</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">New</h6>
+                                                <span class="badge bg-info" data-mock="true">45</span>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">Sarah Johnson</div>
+                                                <small class="text-muted">Python Course</small>
+                                                <div class="text-success fw-bold">₹25,000</div>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">Alex Kumar</div>
+                                                <small class="text-muted">Web Design</small>
+                                                <div class="text-success fw-bold">₹20,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Contacted</h6>
+                                                <span class="badge bg-warning" data-mock="true">32</span>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">Michael Chen</div>
+                                                <small class="text-muted">Data Science</small>
+                                                <div class="text-success fw-bold">₹45,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Interested</h6>
+                                                <span class="badge" style="background-color: #FD7E14;" data-mock="true">28</span>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">Lisa Patel</div>
+                                                <small class="text-muted">Machine Learning</small>
+                                                <div class="text-success fw-bold">₹50,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Quoted</h6>
+                                                <span class="badge" style="background-color: #6F42C1;" data-mock="true">15</span>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">Robert Wilson</div>
+                                                <small class="text-muted">Full Stack</small>
+                                                <div class="text-success fw-bold">₹60,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Converted</h6>
+                                                <span class="badge bg-success" data-mock="true">8</span>
+                                            </div>
+                                            <div class="pipeline-item" data-mock="true">
+                                                <div class="fw-bold">David Thompson</div>
+                                                <small class="text-muted">Machine Learning</small>
+                                                <div class="text-success fw-bold">₹50,000</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="pipeline-stage p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0">Lost</h6>
+                                                <span class="badge bg-danger" data-mock="true">12</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0">Pipeline Metrics</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Pipeline Value</span>
+                                        <strong data-mock="true">₹32,50,000</strong>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-primary" style="width: 75%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Expected Revenue</span>
+                                        <strong data-mock="true">₹24,37,500</strong>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-success" style="width: 60%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Win Rate</span>
+                                        <strong data-mock="true">24.8%</strong>
+                                    </div>
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar bg-warning" style="width: 25%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Avg. Deal Size</span>
+                                        <strong data-mock="true">₹38,750</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Lead Modal -->
+    <div class="modal fade" id="addLeadModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Lead</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Email Address *</label>
+                                    <input type="email" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Phone Number *</label>
+                                    <input type="tel" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">WhatsApp Number</label>
+                                    <input type="tel" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Course Interest *</label>
+                                    <select class="form-select" required>
+                                        <option value="">Select Course</option>
+                                        <option>Python Development</option>
+                                        <option>Data Science Bootcamp</option>
+                                        <option>Web Design Course</option>
+                                        <option>Machine Learning</option>
+                                        <option>Full Stack Development</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Lead Source</label>
+                                    <select class="form-select">
+                                        <option>Website</option>
+                                        <option>Social Media</option>
+                                        <option>Google Ads</option>
+                                        <option>Referral</option>
+                                        <option>Walk-in</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-primary">Save & Add Another</button>
+                    <button type="button" class="btn btn-primary">Save Lead</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        
+        (function() {
+            // Navigation functionality
+            function toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                sidebar.classList.toggle('collapsed');
+                sidebar.classList.toggle('show');
+                mainContent.classList.toggle('expanded');
+            }
+            
+            function showSection(sectionName) {
+                // Hide all sections
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.add('d-none');
+                });
+                
+                // Show selected section
+                const targetSection = document.getElementById(sectionName + '-section');
+                if (targetSection) {
+                    targetSection.classList.remove('d-none');
+                }
+                
+                // Update page title
+                const pageTitle = document.getElementById('pageTitle');
+                const titles = {
+                    'dashboard': 'Dashboard Overview',
+                    'leads': 'Leads Management',
+                    'pipeline': 'Sales Pipeline',
+                    'meetings': 'Meetings & Schedule',
+                    'courses': 'Course Management',
+                    'corporate': 'Corporate Training',
+                    'students': 'Student Tracking',
+                    'messages': 'Message Templates',
+                    'reports': 'Reports & Analytics',
+                    'settings': 'Settings'
+                };
+                pageTitle.textContent = titles[sectionName] || 'Dashboard Overview';
+                
+                // Update active nav link
+                document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+                
+                // Close sidebar on mobile after navigation
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    sidebar.classList.remove('show');
+                }
+            }
+            
+            // Event listeners
+            document.addEventListener('DOMContentLoaded', function() {
+                // Navigation click handlers
+                document.querySelectorAll('[data-section]').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const section = this.getAttribute('data-section');
+                        showSection(section);
+                    });
+                });
+                
+                // Filter chip functionality
+                document.querySelectorAll('.filter-chip').forEach(chip => {
+                    chip.addEventListener('click', function() {
+                        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+                
+                // Action button hover effects
+                document.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.addEventListener('mouseenter', function() {
+                        this.style.transform = 'scale(1.1)';
+                    });
+                    btn.addEventListener('mouseleave', function() {
+                        this.style.transform = 'scale(1)';
+                    });
+                });
+                
+                // Pipeline drag and drop simulation
+                document.querySelectorAll('.pipeline-item').forEach(item => {
+                    item.addEventListener('dragstart', function(e) {
+                        this.style.opacity = '0.5';
+                    });
+                    item.addEventListener('dragend', function(e) {
+                        this.style.opacity = '1';
+                    });
+                    item.setAttribute('draggable', 'true');
+                });
+            });
+            
+            // Mobile responsive handler
+            window.addEventListener('resize', function() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('collapsed', 'show');
+                    mainContent.classList.remove('expanded');
+                } else {
+                    sidebar.classList.add('collapsed');
+                    sidebar.classList.remove('show');
+                    mainContent.classList.add('expanded');
+                }
+            });
+            
+            // Make functions globally available
+            window.toggleSidebar = toggleSidebar;
+            window.showSection = showSection;
+        })();
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,13 +15,14 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 mail = Mail()
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
     
-    # SQLite database configuration for offline functionality
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///crm.db"
+    # MySQL database configuration
+    app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root@localhost:3306/leads"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
     # Mail configuration
@@ -32,11 +34,24 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     mail.init_app(app)
     
     login_manager.login_view = 'main.login'
     login_manager.login_message = 'Please log in to access this page.'
+    
+    # Add custom template filter for JSON conversion
+    @app.template_filter('tojsonfilter')
+    def to_json_filter(obj):
+        import json
+        return json.dumps(obj, default=str)
+    
+    # Add custom template filter
+    @app.template_filter('tojsonfilter')
+    def to_json_filter(obj):
+        import json
+        return json.dumps(obj, default=str)
     
     with app.app_context():
         # Import models and routes
@@ -46,22 +61,26 @@ def create_app():
         # Register blueprints
         app.register_blueprint(routes.main)
         
-        # Create database tables
-        db.create_all()
+        # Note: We'll use migrations instead of db.create_all()
+        # db.create_all()
         
         # Create default admin user if it doesn't exist
         from models import User
         from werkzeug.security import generate_password_hash
         
-        if not User.query.filter_by(username='admin').first():
-            admin_user = User(
-                username='admin',
-                email='admin@trainingcenter.com',
-                password_hash=generate_password_hash('admin123'),
-                role='admin'
-            )
-            db.session.add(admin_user)
-            db.session.commit()
+        try:
+            if not User.query.filter_by(username='admin').first():
+                admin_user = User(
+                    username='admin',
+                    email='admin@trainingcenter.com',
+                    password_hash=generate_password_hash('admin123'),
+                    role='admin'
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+        except Exception as e:
+            # Tables might not exist yet, will be created with migration
+            print(f"Admin user creation skipped: {e}")
     
     return app
 
