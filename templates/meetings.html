@@ -1,0 +1,628 @@
+{% extends "base.html" %}
+
+{% block title %}Meetings - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Meetings</li>
+{% endblock %}
+
+{% block content %}
+<!-- Meeting Calendar Header -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2 class="mb-0">Meeting Calendar</h2>
+        <p class="text-muted">Schedule and manage meetings with leads and students</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="btn-group me-3" role="group">
+            <button type="button" class="btn btn-outline-primary active" onclick="changeView('month')">Month</button>
+            <button type="button" class="btn btn-outline-primary" onclick="changeView('week')">Week</button>
+            <button type="button" class="btn btn-outline-primary" onclick="changeView('day')">Day</button>
+        </div>
+        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#meetingModal">
+            <i class="fas fa-plus me-2"></i>Schedule Meeting
+        </button>
+    </div>
+</div>
+
+<!-- Calendar Navigation -->
+<div class="calendar-view">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <button class="btn btn-outline-secondary me-3" onclick="navigateCalendar(-1)">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <h4 class="mb-0" id="calendarTitle">{{ "now" | strftime('%B %Y') }}</h4>
+            <button class="btn btn-outline-secondary ms-3" onclick="navigateCalendar(1)">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        <button class="btn btn-outline-primary" onclick="goToToday()">Today</button>
+    </div>
+    
+    <!-- Calendar Grid -->
+    <div id="calendarGrid" class="calendar-container">
+        <!-- Calendar will be rendered here -->
+    </div>
+</div>
+
+<!-- Upcoming Meetings -->
+<div class="row mt-4">
+    <div class="col-lg-8">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Today's Meetings</h5>
+                <span class="badge bg-primary">{{ meetings | selectattr("meeting_date", "sameas", "today") | list | length }} meetings</span>
+            </div>
+            
+            <div class="meeting-list">
+                {% for meeting in meetings if meeting.meeting_date.date() == date.today() %}
+                <div class="meeting-card meeting-{{ meeting.meeting_type.lower() }}">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="mb-1">{{ meeting.title }}</h6>
+                            <div class="small text-muted mb-2">
+                                {% if meeting.lead %}
+                                <i class="fas fa-user me-2"></i>{{ meeting.lead.name }}
+                                {% elif meeting.student %}
+                                <i class="fas fa-user-graduate me-2"></i>{{ meeting.student.name }}
+                                {% endif %}
+                                
+                                {% if meeting.meeting_type == 'Online' and meeting.meeting_link %}
+                                <span class="ms-3"><i class="fas fa-video me-1"></i>Online</span>
+                                {% elif meeting.meeting_type == 'Offline' and meeting.location %}
+                                <span class="ms-3"><i class="fas fa-map-marker-alt me-1"></i>{{ meeting.location }}</span>
+                                {% endif %}
+                            </div>
+                            {% if meeting.agenda %}
+                            <p class="small mb-0">{{ meeting.agenda[:100] }}{% if meeting.agenda|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="fw-bold text-primary">
+                                {{ meeting.meeting_date.strftime('%I:%M %p') }}
+                            </div>
+                            <small class="text-muted">{{ meeting.duration }} min</small>
+                            <div class="mt-2">
+                                <span class="status-badge status-{{ meeting.status.lower().replace(' ', '-') }}">
+                                    {{ meeting.status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex gap-2">
+                            {% if meeting.meeting_type == 'Online' and meeting.meeting_link %}
+                            <a href="{{ meeting.meeting_link }}" class="btn btn-sm btn-success" target="_blank">
+                                <i class="fas fa-video me-1"></i>Join Meeting
+                            </a>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-primary" onclick="editMeeting({{ meeting.id }})">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="markCompleted({{ meeting.id }})">
+                                <i class="fas fa-check me-1"></i>Complete
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="rescheduleMeeting({{ meeting.id }})">
+                                <i class="fas fa-clock me-1"></i>Reschedule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted">No meetings scheduled for today</h6>
+                    <p class="text-muted">Schedule your first meeting to get started.</p>
+                    <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#meetingModal">
+                        <i class="fas fa-plus me-2"></i>Schedule Meeting
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Meeting Statistics -->
+        <div class="dashboard-card mb-4">
+            <h5 class="mb-3">Meeting Statistics</h5>
+            
+            <div class="stat-item mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>This Week</span>
+                    <span class="fw-bold text-primary">{{ meetings | selectattr("meeting_date", ">=", week_start) | selectattr("meeting_date", "<=", week_end) | list | length }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-item mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>This Month</span>
+                    <span class="fw-bold text-success">{{ meetings | length }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-item mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Completed</span>
+                    <span class="fw-bold text-info">{{ meetings | selectattr("status", "equalto", "Completed") | list | length }}</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Pending</span>
+                    <span class="fw-bold text-warning">{{ meetings | selectattr("status", "equalto", "Scheduled") | list | length }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="dashboard-card">
+            <h5 class="mb-3">Quick Actions</h5>
+            <div class="d-grid gap-2">
+                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#meetingModal">
+                    <i class="fas fa-calendar-plus me-2"></i>New Meeting
+                </button>
+                <button class="btn btn-outline-success" onclick="showMeetingTemplates()">
+                    <i class="fas fa-template me-2"></i>Meeting Templates
+                </button>
+                <button class="btn btn-outline-info" onclick="exportCalendar()">
+                    <i class="fas fa-download me-2"></i>Export Calendar
+                </button>
+                <button class="btn btn-outline-warning" onclick="sendReminders()">
+                    <i class="fas fa-bell me-2"></i>Send Reminders
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Meeting Modal -->
+{% include 'modals/meeting_modal.html' %}
+
+<!-- Meeting Detail Modal -->
+<div class="modal fade" id="meetingDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meeting Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="meetingDetailContent">
+                <!-- Meeting details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editCurrentMeeting()">Edit Meeting</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Meeting management JavaScript
+let currentView = 'month';
+let currentDate = new Date();
+let meetings = {{ meetings | tojsonfilter }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderCalendar();
+    initializeMeetingFunctionality();
+});
+
+function renderCalendar() {
+    const grid = document.getElementById('calendarGrid');
+    const title = document.getElementById('calendarTitle');
+    
+    if (currentView === 'month') {
+        renderMonthView(grid, title);
+    } else if (currentView === 'week') {
+        renderWeekView(grid, title);
+    } else if (currentView === 'day') {
+        renderDayView(grid, title);
+    }
+}
+
+function renderMonthView(grid, title) {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    title.textContent = currentDate.toLocaleDateString('en-US', { 
+        month: 'long', 
+        year: 'numeric' 
+    });
+    
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const today = new Date();
+    
+    let html = `
+        <div class="calendar-header">
+            <div class="row">
+                <div class="col">Sun</div>
+                <div class="col">Mon</div>
+                <div class="col">Tue</div>
+                <div class="col">Wed</div>
+                <div class="col">Thu</div>
+                <div class="col">Fri</div>
+                <div class="col">Sat</div>
+            </div>
+        </div>
+        <div class="calendar-body">
+    `;
+    
+    let date = 1;
+    for (let week = 0; week < 6; week++) {
+        html += '<div class="row calendar-week">';
+        
+        for (let day = 0; day < 7; day++) {
+            if (week === 0 && day < firstDay) {
+                html += '<div class="col calendar-day empty"></div>';
+            } else if (date > daysInMonth) {
+                html += '<div class="col calendar-day empty"></div>';
+            } else {
+                const dayDate = new Date(year, month, date);
+                const isToday = dayDate.toDateString() === today.toDateString();
+                const dayMeetings = getMeetingsForDate(dayDate);
+                
+                html += `
+                    <div class="col calendar-day ${isToday ? 'today' : ''}" 
+                         onclick="selectDate('${dayDate.toISOString().split('T')[0]}')">
+                        <div class="day-number">${date}</div>
+                        <div class="day-meetings">
+                `;
+                
+                dayMeetings.slice(0, 2).forEach(meeting => {
+                    html += `
+                        <div class="meeting-item meeting-${meeting.meeting_type.toLowerCase()}" 
+                             onclick="viewMeeting(${meeting.id}); event.stopPropagation();">
+                            <small>${meeting.title}</small>
+                        </div>
+                    `;
+                });
+                
+                if (dayMeetings.length > 2) {
+                    html += `<small class="text-muted">+${dayMeetings.length - 2} more</small>`;
+                }
+                
+                html += '</div></div>';
+                date++;
+            }
+        }
+        
+        html += '</div>';
+        
+        if (date > daysInMonth) break;
+    }
+    
+    html += '</div>';
+    grid.innerHTML = html;
+}
+
+function renderWeekView(grid, title) {
+    const startOfWeek = getStartOfWeek(currentDate);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    
+    title.textContent = `${startOfWeek.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+    })} - ${endOfWeek.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+    })}`;
+    
+    let html = `
+        <div class="week-view">
+            <div class="row">
+                <div class="col-1"></div>
+    `;
+    
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(startOfWeek);
+        day.setDate(day.getDate() + i);
+        const isToday = day.toDateString() === new Date().toDateString();
+        
+        html += `
+            <div class="col day-header ${isToday ? 'today' : ''}">
+                <div class="day-name">${day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                <div class="day-number">${day.getDate()}</div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    // Time slots
+    for (let hour = 8; hour < 18; hour++) {
+        html += '<div class="row time-slot">';
+        html += `<div class="col-1 time-label">${hour}:00</div>`;
+        
+        for (let day = 0; day < 7; day++) {
+            const slotDate = new Date(startOfWeek);
+            slotDate.setDate(slotDate.getDate() + day);
+            slotDate.setHours(hour, 0, 0, 0);
+            
+            const slotMeetings = getMeetingsForTimeSlot(slotDate);
+            
+            html += '<div class="col time-slot-cell">';
+            
+            slotMeetings.forEach(meeting => {
+                html += `
+                    <div class="meeting-block meeting-${meeting.meeting_type.toLowerCase()}" 
+                         onclick="viewMeeting(${meeting.id})">
+                        <small class="fw-bold">${meeting.title}</small>
+                        <small class="d-block">${meeting.lead?.name || meeting.student?.name || ''}</small>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    grid.innerHTML = html;
+}
+
+function renderDayView(grid, title) {
+    title.textContent = currentDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    
+    const dayMeetings = getMeetingsForDate(currentDate);
+    
+    let html = `
+        <div class="day-view">
+            <div class="day-schedule">
+    `;
+    
+    for (let hour = 8; hour < 18; hour++) {
+        const timeSlot = new Date(currentDate);
+        timeSlot.setHours(hour, 0, 0, 0);
+        
+        const hourMeetings = dayMeetings.filter(meeting => {
+            const meetingTime = new Date(meeting.meeting_date);
+            return meetingTime.getHours() === hour;
+        });
+        
+        html += `
+            <div class="time-slot-large">
+                <div class="time-label-large">${hour}:00</div>
+                <div class="meetings-container">
+        `;
+        
+        hourMeetings.forEach(meeting => {
+            html += `
+                <div class="meeting-card-large meeting-${meeting.meeting_type.toLowerCase()}" 
+                     onclick="viewMeeting(${meeting.id})">
+                    <h6 class="mb-1">${meeting.title}</h6>
+                    <p class="mb-1">${meeting.lead?.name || meeting.student?.name || ''}</p>
+                    <small>${meeting.duration} min</small>
+                </div>
+            `;
+        });
+        
+        html += '</div></div>';
+    }
+    
+    html += '</div></div>';
+    grid.innerHTML = html;
+}
+
+function getMeetingsForDate(date) {
+    return meetings.filter(meeting => {
+        const meetingDate = new Date(meeting.meeting_date);
+        return meetingDate.toDateString() === date.toDateString();
+    });
+}
+
+function getMeetingsForTimeSlot(slotDate) {
+    return meetings.filter(meeting => {
+        const meetingDate = new Date(meeting.meeting_date);
+        return meetingDate.getTime() >= slotDate.getTime() && 
+               meetingDate.getTime() < slotDate.getTime() + (60 * 60 * 1000); // 1 hour
+    });
+}
+
+function getStartOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
+}
+
+function changeView(view) {
+    currentView = view;
+    
+    // Update active button
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    renderCalendar();
+}
+
+function navigateCalendar(direction) {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + direction);
+    } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + (direction * 7));
+    } else if (currentView === 'day') {
+        currentDate.setDate(currentDate.getDate() + direction);
+    }
+    
+    renderCalendar();
+}
+
+function goToToday() {
+    currentDate = new Date();
+    renderCalendar();
+}
+
+function selectDate(dateString) {
+    const selectedDate = new Date(dateString);
+    currentDate = selectedDate;
+    changeView('day');
+}
+
+function viewMeeting(meetingId) {
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (!meeting) return;
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Meeting Information</h6>
+                <p><strong>Title:</strong> ${meeting.title}</p>
+                <p><strong>Type:</strong> ${meeting.meeting_type}</p>
+                <p><strong>Date:</strong> ${new Date(meeting.meeting_date).toLocaleDateString()}</p>
+                <p><strong>Time:</strong> ${new Date(meeting.meeting_date).toLocaleTimeString()}</p>
+                <p><strong>Duration:</strong> ${meeting.duration} minutes</p>
+                <p><strong>Status:</strong> <span class="status-badge status-${meeting.status.toLowerCase()}">${meeting.status}</span></p>
+            </div>
+            <div class="col-md-6">
+                <h6>Participant</h6>
+                <p><strong>Name:</strong> ${meeting.lead?.name || meeting.student?.name || 'Not specified'}</p>
+                ${meeting.meeting_type === 'Online' && meeting.meeting_link ? 
+                    `<p><strong>Meeting Link:</strong> <a href="${meeting.meeting_link}" target="_blank">Join Meeting</a></p>` : ''}
+                ${meeting.meeting_type === 'Offline' && meeting.location ? 
+                    `<p><strong>Location:</strong> ${meeting.location}</p>` : ''}
+            </div>
+        </div>
+        ${meeting.agenda ? `<div class="mt-3"><h6>Agenda</h6><p>${meeting.agenda}</p></div>` : ''}
+        ${meeting.notes ? `<div class="mt-3"><h6>Notes</h6><p>${meeting.notes}</p></div>` : ''}
+    `;
+    
+    document.getElementById('meetingDetailContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('meetingDetailModal')).show();
+}
+
+function editMeeting(meetingId) {
+    window.location.href = `/meetings/${meetingId}/edit`;
+}
+
+function markCompleted(meetingId) {
+    if (confirm('Mark this meeting as completed?')) {
+        showLoading();
+        
+        // Simulate API call
+        setTimeout(() => {
+            hideLoading();
+            
+            // Update meeting status
+            const meeting = meetings.find(m => m.id === meetingId);
+            if (meeting) {
+                meeting.status = 'Completed';
+                renderCalendar();
+            }
+            
+            showNotification('Meeting marked as completed', 'success');
+        }, 500);
+    }
+}
+
+function rescheduleMeeting(meetingId) {
+    // Open meeting modal for editing
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (meeting) {
+        // Pre-populate form and open modal
+        const modal = new bootstrap.Modal(document.getElementById('meetingModal'));
+        modal.show();
+    }
+}
+
+function initializeMeetingFunctionality() {
+    // Add CSS for calendar styling
+    const style = document.createElement('style');
+    style.textContent = `
+        .calendar-container { min-height: 600px; }
+        .calendar-day { 
+            border: 1px solid #e9ecef; 
+            min-height: 100px; 
+            padding: 8px; 
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .calendar-day:hover { background-color: #f8f9fa; }
+        .calendar-day.today { background-color: #e3f2fd; }
+        .calendar-day.empty { background-color: #f8f9fa; cursor: default; }
+        .day-number { font-weight: bold; margin-bottom: 5px; }
+        .meeting-item { 
+            background: #007bff; 
+            color: white; 
+            border-radius: 3px; 
+            padding: 2px 5px; 
+            margin: 1px 0; 
+            cursor: pointer;
+            font-size: 10px;
+        }
+        .meeting-item.meeting-online { background: #28a745; }
+        .meeting-item.meeting-offline { background: #ffc107; color: #000; }
+        .week-view .time-slot { border-bottom: 1px solid #e9ecef; min-height: 60px; }
+        .time-label { font-weight: bold; padding: 10px 5px; }
+        .time-slot-cell { border-right: 1px solid #e9ecef; position: relative; }
+        .meeting-block { 
+            background: #007bff; 
+            color: white; 
+            border-radius: 4px; 
+            padding: 5px; 
+            margin: 2px 0; 
+            cursor: pointer;
+        }
+        .day-header.today { background-color: #e3f2fd; }
+        .time-slot-large { 
+            border-bottom: 1px solid #e9ecef; 
+            min-height: 80px; 
+            display: flex;
+            align-items: flex-start;
+        }
+        .time-label-large { 
+            width: 80px; 
+            font-weight: bold; 
+            padding: 10px; 
+            border-right: 1px solid #e9ecef;
+        }
+        .meetings-container { flex: 1; padding: 10px; }
+        .meeting-card-large { 
+            background: white; 
+            border: 2px solid #007bff; 
+            border-radius: 8px; 
+            padding: 10px; 
+            margin: 5px 0; 
+            cursor: pointer;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Quick action functions
+function showMeetingTemplates() {
+    showNotification('Meeting templates feature coming soon!', 'info');
+}
+
+function exportCalendar() {
+    showNotification('Calendar export started!', 'success');
+}
+
+function sendReminders() {
+    showLoading();
+    setTimeout(() => {
+        hideLoading();
+        showNotification('Meeting reminders sent successfully!', 'success');
+    }, 1000);
+}
+</script>
+{% endblock %}

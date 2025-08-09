@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card leads">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-icon">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ total_leads }}</h3>
+                    <p class="text-muted mb-0">Total Leads</p>
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i> +12% this month
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card students">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ total_students }}</h3>
+                    <p class="text-muted mb-0">Active Students</p>
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i> +8% this month
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card courses">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1">{{ total_courses }}</h3>
+                    <p class="text-muted mb-0">Active Courses</p>
+                    <small class="text-info">
+                        <i class="fas fa-minus"></i> No change
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card revenue">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="card-icon">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h3 class="fw-bold mb-1">${{ "{:,.0f}".format(monthly_revenue) }}</h3>
+                    <p class="text-muted mb-0">Monthly Revenue</p>
+                    <small class="text-success">
+                        <i class="fas fa-arrow-up"></i> +15% this month
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="chart-container">
+            <canvas id="pipelineChart" height="300"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="chart-container">
+            <canvas id="conversionChart" height="300"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="chart-container">
+            <canvas id="revenueChart" height="250"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="chart-container">
+            <canvas id="courseChart" height="250"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Recent Leads</h5>
+                <a href="{{ url_for('main.leads') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            
+            {% if recent_leads %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Course Interest</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in recent_leads %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        {{ lead.name[0].upper() }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ lead.name }}</div>
+                                        <small class="text-muted">{{ lead.phone }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if lead.course_interest %}
+                                    {{ lead.course_interest.name }}
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ lead.status.lower() }}">
+                                    {{ lead.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ lead.created_at.strftime('%b %d, %Y') }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-outline-primary" title="Call">
+                                        <i class="fas fa-phone"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success" title="WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" title="Email">
+                                        <i class="fas fa-envelope"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No recent leads found</p>
+                <a href="{{ url_for('main.add_lead') }}" class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#leadModal">
+                    <i class="fas fa-plus me-2"></i>Add First Lead
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Pipeline Summary -->
+        <div class="dashboard-card mb-4">
+            <h5 class="mb-3">Pipeline Summary</h5>
+            {% for status, count in pipeline_data %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="status-badge status-{{ status.lower() }}">{{ status }}</span>
+                <span class="fw-bold">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="dashboard-card">
+            <h5 class="mb-3">Quick Actions</h5>
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#leadModal">
+                    <i class="fas fa-user-plus me-2"></i>Add New Lead
+                </button>
+                <button class="btn btn-success-custom" data-bs-toggle="modal" data-bs-target="#meetingModal">
+                    <i class="fas fa-calendar-plus me-2"></i>Schedule Meeting
+                </button>
+                <button class="btn btn-warning-custom" data-bs-toggle="modal" data-bs-target="#courseModal">
+                    <i class="fas fa-book me-2"></i>Create Course
+                </button>
+                <a href="{{ url_for('main.reports') }}" class="btn btn-info text-white">
+                    <i class="fas fa-chart-bar me-2"></i>View Reports
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+{% include 'modals/lead_modal.html' %}
+{% include 'modals/meeting_modal.html' %}
+{% include 'modals/course_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Dashboard-specific JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate numbers on page load
+    const numbers = document.querySelectorAll('.dashboard-card h3');
+    numbers.forEach(number => {
+        const finalValue = parseInt(number.textContent.replace(/[^0-9]/g, ''));
+        let currentValue = 0;
+        const increment = finalValue / 50;
+        
+        const updateNumber = () => {
+            currentValue += increment;
+            if (currentValue < finalValue) {
+                number.textContent = Math.floor(currentValue).toLocaleString();
+                requestAnimationFrame(updateNumber);
+            } else {
+                number.textContent = finalValue.toLocaleString();
+            }
+        };
+        
+        updateNumber();
+    });
+    
+    // Add fade-in animation to cards
+    const cards = document.querySelectorAll('.dashboard-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

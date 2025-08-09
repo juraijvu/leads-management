@@ -1,0 +1,252 @@
+<!-- Meeting Modal -->
+<div class="modal fade" id="meetingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-plus me-2"></i>
+                    <span id="meetingModalTitle">Schedule Meeting</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form method="POST" action="{{ url_for('main.add_meeting') }}" id="meetingForm">
+                <div class="modal-body">
+                    <!-- Meeting Participant -->
+                    <div class="section-header mb-3">
+                        <h6 class="text-primary">
+                            <i class="fas fa-users me-2"></i>Meeting Participant
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="lead_id" name="lead_id">
+                                    <option value="">Select Lead</option>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                                <label for="lead_id">Lead</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="student_id" name="student_id">
+                                    <option value="">Select Student</option>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                                <label for="student_id">Student</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Meeting Details -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-info-circle me-2"></i>Meeting Details
+                        </h6>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="title" name="title" placeholder="Meeting Title" required>
+                        <label for="title">Meeting Title *</label>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="meeting_type" name="meeting_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="Online">Online</option>
+                                    <option value="Offline">Offline</option>
+                                </select>
+                                <label for="meeting_type">Meeting Type *</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <input type="date" class="form-control" id="meeting_date" name="meeting_date" required>
+                                <label for="meeting_date">Meeting Date *</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="duration" name="duration" required>
+                                    <option value="">Duration</option>
+                                    <option value="15">15 minutes</option>
+                                    <option value="30">30 minutes</option>
+                                    <option value="45">45 minutes</option>
+                                    <option value="60">1 hour</option>
+                                    <option value="90">1.5 hours</option>
+                                    <option value="120">2 hours</option>
+                                </select>
+                                <label for="duration">Duration *</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Meeting Location/Link -->
+                    <div id="onlineFields" style="display: none;">
+                        <div class="form-floating mb-3">
+                            <input type="url" class="form-control" id="meeting_link" name="meeting_link" 
+                                   placeholder="https://zoom.us/j/123456789">
+                            <label for="meeting_link">Meeting Link</label>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Enter the online meeting link (Zoom, Google Meet, Teams, etc.)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="offlineFields" style="display: none;">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="location" name="location" 
+                                   placeholder="Office conference room, client location, etc.">
+                            <label for="location">Meeting Location</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Meeting Agenda -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-list me-2"></i>Meeting Agenda
+                        </h6>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="agenda" name="agenda" 
+                                  placeholder="Meeting agenda and discussion points..." style="height: 120px"></textarea>
+                        <label for="agenda">Agenda</label>
+                        <div class="form-text">
+                            <span id="agendaCount">0</span>/500 characters
+                        </div>
+                    </div>
+                    
+                    <!-- Reminder Settings -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-bell me-2"></i>Reminder Settings
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="email_reminder" name="email_reminder" checked>
+                                <label class="form-check-label" for="email_reminder">
+                                    <i class="fas fa-envelope me-2"></i>Email Reminder
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="sms_reminder" name="sms_reminder">
+                                <label class="form-check-label" for="sms_reminder">
+                                    <i class="fas fa-sms me-2"></i>SMS Reminder
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="reminder_time" name="reminder_time">
+                                    <option value="15">15 minutes before</option>
+                                    <option value="30">30 minutes before</option>
+                                    <option value="60" selected>1 hour before</option>
+                                    <option value="120">2 hours before</option>
+                                    <option value="1440">1 day before</option>
+                                </select>
+                                <label for="reminder_time">Reminder Time</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="saveDraft">
+                        <i class="fas fa-save me-2"></i>Save as Draft
+                    </button>
+                    <button type="submit" class="btn btn-primary-custom">
+                        <i class="fas fa-calendar-check me-2"></i>Schedule Meeting
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Meeting type change handler
+    document.getElementById('meeting_type').addEventListener('change', function() {
+        const onlineFields = document.getElementById('onlineFields');
+        const offlineFields = document.getElementById('offlineFields');
+        
+        if (this.value === 'Online') {
+            onlineFields.style.display = 'block';
+            offlineFields.style.display = 'none';
+            document.getElementById('meeting_link').required = true;
+            document.getElementById('location').required = false;
+        } else if (this.value === 'Offline') {
+            onlineFields.style.display = 'none';
+            offlineFields.style.display = 'block';
+            document.getElementById('meeting_link').required = false;
+            document.getElementById('location').required = true;
+        } else {
+            onlineFields.style.display = 'none';
+            offlineFields.style.display = 'none';
+            document.getElementById('meeting_link').required = false;
+            document.getElementById('location').required = false;
+        }
+    });
+    
+    // Agenda character counter
+    document.getElementById('agenda').addEventListener('input', function() {
+        const count = this.value.length;
+        document.getElementById('agendaCount').textContent = count;
+        
+        if (count > 500) {
+            this.value = this.value.substring(0, 500);
+            document.getElementById('agendaCount').textContent = 500;
+        }
+    });
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('meeting_date').min = today;
+    
+    // Mutual exclusivity of lead and student
+    document.getElementById('lead_id').addEventListener('change', function() {
+        if (this.value) {
+            document.getElementById('student_id').value = '';
+        }
+    });
+    
+    document.getElementById('student_id').addEventListener('change', function() {
+        if (this.value) {
+            document.getElementById('lead_id').value = '';
+        }
+    });
+    
+    // Form validation
+    document.getElementById('meetingForm').addEventListener('submit', function(e) {
+        const leadId = document.getElementById('lead_id').value;
+        const studentId = document.getElementById('student_id').value;
+        
+        if (!leadId && !studentId) {
+            e.preventDefault();
+            alert('Please select either a lead or a student for the meeting.');
+            return;
+        }
+        
+        if (!validateForm('meetingForm')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>

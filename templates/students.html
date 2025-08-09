@@ -1,0 +1,701 @@
+{% extends "base.html" %}
+
+{% block title %}Students - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Students</li>
+{% endblock %}
+
+{% block content %}
+<!-- Students Header -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2 class="mb-0">Student Management</h2>
+        <p class="text-muted">Track and manage your enrolled students</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="btn-group me-3" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="exportData('excel', 'students')">
+                <i class="fas fa-file-excel me-2"></i>Excel
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="exportData('pdf', 'students')">
+                <i class="fas fa-file-pdf me-2"></i>PDF
+            </button>
+        </div>
+        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#studentModal">
+            <i class="fas fa-user-plus me-2"></i>Add Student
+        </button>
+    </div>
+</div>
+
+<!-- Student Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-success">{{ students | selectattr("status", "equalto", "Active") | list | length }}</div>
+                <div class="stat-label">Active Students</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-info">{{ students | selectattr("status", "equalto", "Completed") | list | length }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-warning">{{ students | selectattr("status", "equalto", "Suspended") | list | length }}</div>
+                <div class="stat-label">Suspended</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-primary">${{ "{:,.0f}".format(students | sum(attribute='fee_paid') if students else 0) }}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="search-filter-bar mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-3">
+            <div class="input-group">
+                <input type="text" class="form-control search-input" placeholder="Search students..." 
+                       id="studentSearch" value="{{ search }}">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select filter-select" name="course" onchange="applyFilters()">
+                <option value="">All Courses</option>
+                {% for course in courses %}
+                <option value="{{ course.id }}" {% if course_filter == course.id|string %}selected{% endif %}>
+                    {{ course.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select filter-select" name="status" onchange="applyFilters()">
+                <option value="">All Status</option>
+                {% for status in statuses %}
+                <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>
+                    {{ status }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select filter-select" name="payment" onchange="applyFilters()">
+                <option value="">Payment Status</option>
+                <option value="paid">Fully Paid</option>
+                <option value="partial">Partial Payment</option>
+                <option value="pending">Pending Payment</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle w-100" data-bs-toggle="dropdown">
+                    <i class="fas fa-filter me-2"></i>More Filters
+                </button>
+                <div class="dropdown-menu p-3" style="width: 300px;">
+                    <h6 class="dropdown-header">Advanced Filters</h6>
+                    <div class="mb-3">
+                        <label class="form-label">Enrollment Date</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="date" class="form-control form-control-sm" placeholder="From">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control form-control-sm" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Progress Range</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" class="form-control form-control-sm" placeholder="Min %" min="0" max="100">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" class="form-control form-control-sm" placeholder="Max %" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm w-100">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="custom-table">
+    <div class="table-responsive">
+        <table class="table table-hover data-table">
+            <thead>
+                <tr>
+                    <th>
+                        <input type="checkbox" class="form-check-input" id="selectAllStudents">
+                    </th>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th>Progress</th>
+                    <th>Payment Status</th>
+                    <th>Status</th>
+                    <th>Enrollment Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input student-select" value="{{ student.id }}">
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-success text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 40px; height: 40px;">
+                                {{ student.name[0].upper() }}
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ student.name }}</div>
+                                <small class="text-muted">
+                                    <i class="fas fa-phone me-1"></i>{{ student.phone }}
+                                </small>
+                                {% if student.email %}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-envelope me-1"></i>{{ student.email }}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <div class="fw-bold">{{ student.course.name }}</div>
+                            {% if student.batch_name %}
+                            <small class="text-muted">Batch: {{ student.batch_name }}</small>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="progress-container">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">{{ student.progress_percentage }}%</small>
+                                <small class="text-muted">
+                                    {% if student.progress_percentage >= 80 %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% elif student.progress_percentage >= 60 %}
+                                        <i class="fas fa-thumbs-up text-success"></i>
+                                    {% elif student.progress_percentage >= 40 %}
+                                        <i class="fas fa-clock text-info"></i>
+                                    {% else %}
+                                        <i class="fas fa-play text-primary"></i>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" style="width: {{ student.progress_percentage }}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% set payment_percentage = (student.fee_paid / student.total_fee * 100) if student.total_fee > 0 else 0 %}
+                        <div class="payment-status">
+                            <div class="fw-bold {{ 'text-success' if payment_percentage == 100 else 'text-warning' if payment_percentage > 0 else 'text-danger' }}">
+                                ${{ "{:,.0f}".format(student.fee_paid) }} / ${{ "{:,.0f}".format(student.total_fee) }}
+                            </div>
+                            <small class="text-muted">
+                                {{ "{:.0f}".format(payment_percentage) }}% paid
+                            </small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ student.status.lower() }}">
+                            {{ student.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <div>{{ student.enrollment_date.strftime('%b %d, %Y') }}</div>
+                        {% if student.start_date %}
+                        <small class="text-muted">Started: {{ student.start_date.strftime('%b %d') }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewStudent({{ student.id }})" title="View Profile">
+                                <i class="fas fa-user"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="updateProgress({{ student.id }})" title="Update Progress">
+                                <i class="fas fa-chart-line"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="recordPayment({{ student.id }})" title="Record Payment">
+                                <i class="fas fa-dollar-sign"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="editStudent({{ student.id }})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <div class="dropdown d-inline">
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" title="More Actions">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="sendMessage({{ student.id }})">
+                                        <i class="fas fa-envelope me-2"></i>Send Message
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="viewAttendance({{ student.id }})">
+                                        <i class="fas fa-calendar-check me-2"></i>Attendance
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="generateCertificate({{ student.id }})">
+                                        <i class="fas fa-certificate me-2"></i>Certificate
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-warning" href="#" onclick="suspendStudent({{ student.id }})">
+                                        <i class="fas fa-pause me-2"></i>Suspend
+                                    </a></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteStudent({{ student.id }})">
+                                        <i class="fas fa-trash me-2"></i>Delete
+                                    </a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <i class="fas fa-user-graduate fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No students found</h5>
+                        <p class="text-muted">Start by adding your first student or converting leads.</p>
+                        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#studentModal">
+                            <i class="fas fa-user-plus me-2"></i>Add First Student
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination and pagination.pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.students', page=pagination.prev_num, search=search, status=status_filter, course=course_filter) }}">
+                Previous
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.students', page=page_num, search=search, status=status_filter, course=course_filter) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.students', page=pagination.next_num, search=search, status=status_filter, course=course_filter) }}">
+                Next
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Bulk Actions -->
+<div class="mt-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted">Bulk Actions:</span>
+        <button class="btn btn-sm btn-outline-primary" onclick="bulkAction('send_reminder')" disabled id="bulkReminderBtn">
+            Send Payment Reminder
+        </button>
+        <button class="btn btn-sm btn-outline-success" onclick="bulkAction('send_progress')" disabled id="bulkProgressBtn">
+            Send Progress Report
+        </button>
+        <button class="btn btn-sm btn-outline-info" onclick="bulkAction('export')" disabled id="bulkExportBtn">
+            Export Selected
+        </button>
+        <span class="text-muted ms-auto">
+            <span id="selectedStudentCount">0</span> students selected
+        </span>
+    </div>
+</div>
+
+<!-- Student Modals -->
+<div class="modal fade" id="studentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Add New Student
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Student form content -->
+                <p class="text-center text-muted">Student form will be implemented here</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Profile Modal -->
+<div class="modal fade" id="studentProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Student Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentProfileContent">
+                <!-- Student profile content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Student management JavaScript
+let selectedStudents = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeStudentSearch();
+    initializeStudentSelection();
+});
+
+function initializeStudentSearch() {
+    const searchInput = document.getElementById('studentSearch');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performStudentSearch(this.value);
+            }, 300);
+        });
+    }
+}
+
+function performStudentSearch(query) {
+    const rows = document.querySelectorAll('.data-table tbody tr');
+    const lowercaseQuery = query.toLowerCase();
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const textContent = row.textContent.toLowerCase();
+        if (textContent.includes(lowercaseQuery)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    console.log(`Showing ${visibleCount} students`);
+}
+
+function initializeStudentSelection() {
+    // Select all functionality
+    document.getElementById('selectAllStudents')?.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.student-select');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedStudents();
+    });
+    
+    // Individual checkbox functionality
+    document.querySelectorAll('.student-select').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedStudents);
+    });
+}
+
+function updateSelectedStudents() {
+    selectedStudents = Array.from(document.querySelectorAll('.student-select:checked')).map(cb => cb.value);
+    document.getElementById('selectedStudentCount').textContent = selectedStudents.length;
+    
+    // Enable/disable bulk action buttons
+    const bulkButtons = document.querySelectorAll('#bulkReminderBtn, #bulkProgressBtn, #bulkExportBtn');
+    bulkButtons.forEach(btn => {
+        btn.disabled = selectedStudents.length === 0;
+    });
+}
+
+function applyFilters() {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Update URL with filters
+    const courseFilter = document.querySelector('select[name="course"]').value;
+    const statusFilter = document.querySelector('select[name="status"]').value;
+    const paymentFilter = document.querySelector('select[name="payment"]').value;
+    
+    if (courseFilter) params.set('course', courseFilter);
+    else params.delete('course');
+    
+    if (statusFilter) params.set('status', statusFilter);
+    else params.delete('status');
+    
+    if (paymentFilter) params.set('payment', paymentFilter);
+    else params.delete('payment');
+    
+    window.location.search = params.toString();
+}
+
+function viewStudent(studentId) {
+    // Load student profile in modal
+    const studentData = getStudentData(studentId);
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-center mb-4">
+                    <div class="avatar bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center" 
+                         style="width: 100px; height: 100px; font-size: 2rem;">
+                        ${studentData.name[0].toUpperCase()}
+                    </div>
+                    <h4 class="mt-3 mb-1">${studentData.name}</h4>
+                    <p class="text-muted">${studentData.course}</p>
+                    <span class="status-badge status-${studentData.status.toLowerCase()}">${studentData.status}</span>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Contact Information</h6>
+                        <p><strong>Phone:</strong> ${studentData.phone}</p>
+                        <p><strong>Email:</strong> ${studentData.email || 'Not provided'}</p>
+                        <p><strong>Enrollment Date:</strong> ${studentData.enrollment_date}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Course Progress</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Progress</span>
+                                <span>${studentData.progress}%</span>
+                            </div>
+                            <div class="progress-custom">
+                                <div class="progress-bar-custom" style="width: ${studentData.progress}%"></div>
+                            </div>
+                        </div>
+                        <p><strong>Batch:</strong> ${studentData.batch || 'Not assigned'}</p>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h6>Payment Information</h6>
+                        <p><strong>Total Fee:</strong> $${studentData.total_fee.toLocaleString()}</p>
+                        <p><strong>Paid:</strong> $${studentData.fee_paid.toLocaleString()}</p>
+                        <p><strong>Balance:</strong> $${(studentData.total_fee - studentData.fee_paid).toLocaleString()}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Quick Actions</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="updateProgress(${studentData.id})">
+                                Update Progress
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="recordPayment(${studentData.id})">
+                                Record Payment
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="sendMessage(${studentData.id})">
+                                Send Message
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('studentProfileContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('studentProfileModal')).show();
+}
+
+function getStudentData(studentId) {
+    // In a real application, this would fetch from the server
+    return {
+        id: studentId,
+        name: 'John Doe',
+        phone: '+1234567890',
+        email: 'john.doe@email.com',
+        course: 'Web Development',
+        status: 'Active',
+        progress: 75,
+        enrollment_date: 'Jan 15, 2024',
+        batch: 'WD-2024-01',
+        total_fee: 2000,
+        fee_paid: 1500
+    };
+}
+
+function updateProgress(studentId) {
+    const newProgress = prompt('Enter new progress percentage (0-100):');
+    if (newProgress !== null && !isNaN(newProgress) && newProgress >= 0 && newProgress <= 100) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification(`Progress updated to ${newProgress}%`, 'success');
+            // Update progress bar in table
+            updateProgressBar(studentId, newProgress);
+        }, 500);
+    }
+}
+
+function updateProgressBar(studentId, progress) {
+    const row = document.querySelector(`input[value="${studentId}"]`).closest('tr');
+    const progressBar = row.querySelector('.progress-bar-custom');
+    const progressText = row.querySelector('.progress-container small');
+    
+    if (progressBar && progressText) {
+        progressBar.style.width = progress + '%';
+        progressText.textContent = progress + '%';
+    }
+}
+
+function recordPayment(studentId) {
+    const amount = prompt('Enter payment amount:');
+    if (amount !== null && !isNaN(amount) && amount > 0) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification(`Payment of $${parseFloat(amount).toLocaleString()} recorded`, 'success');
+        }, 500);
+    }
+}
+
+function editStudent(studentId) {
+    window.location.href = `/students/${studentId}/edit`;
+}
+
+function sendMessage(studentId) {
+    showNotification('Message feature coming soon!', 'info');
+}
+
+function viewAttendance(studentId) {
+    showNotification('Attendance tracking feature coming soon!', 'info');
+}
+
+function generateCertificate(studentId) {
+    if (confirm('Generate completion certificate for this student?')) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification('Certificate generated successfully!', 'success');
+        }, 1000);
+    }
+}
+
+function suspendStudent(studentId) {
+    if (confirm('Are you sure you want to suspend this student?')) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification('Student suspended', 'warning');
+            
+            // Update status in table
+            const row = document.querySelector(`input[value="${studentId}"]`).closest('tr');
+            const statusBadge = row.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = 'status-badge status-suspended';
+                statusBadge.textContent = 'Suspended';
+            }
+        }, 500);
+    }
+}
+
+function deleteStudent(studentId) {
+    if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            
+            // Remove row from table
+            const row = document.querySelector(`input[value="${studentId}"]`).closest('tr');
+            if (row) {
+                row.remove();
+            }
+            
+            showNotification('Student deleted successfully', 'success');
+        }, 500);
+    }
+}
+
+function bulkAction(action) {
+    if (selectedStudents.length === 0) {
+        alert('Please select students first.');
+        return;
+    }
+    
+    let confirmMessage = '';
+    let successMessage = '';
+    
+    switch (action) {
+        case 'send_reminder':
+            confirmMessage = `Send payment reminders to ${selectedStudents.length} students?`;
+            successMessage = 'Payment reminders sent successfully!';
+            break;
+        case 'send_progress':
+            confirmMessage = `Send progress reports to ${selectedStudents.length} students?`;
+            successMessage = 'Progress reports sent successfully!';
+            break;
+        case 'export':
+            confirmMessage = `Export data for ${selectedStudents.length} selected students?`;
+            successMessage = 'Student data exported successfully!';
+            break;
+    }
+    
+    if (confirm(confirmMessage)) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification(successMessage, 'success');
+            
+            // Clear selection
+            selectedStudents = [];
+            document.getElementById('selectAllStudents').checked = false;
+            document.querySelectorAll('.student-select').forEach(cb => cb.checked = false);
+            updateSelectedStudents();
+        }, 1000);
+    }
+}
+</script>
+{% endblock %}

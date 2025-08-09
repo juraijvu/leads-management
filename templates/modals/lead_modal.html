@@ -1,0 +1,192 @@
+<!-- Lead Modal -->
+<div class="modal fade" id="leadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>
+                    <span id="leadModalTitle">Add New Lead</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form method="POST" action="{{ url_for('main.add_lead') }}" id="leadForm" class="auto-save-form">
+                <div class="modal-body">
+                    <!-- Personal Information -->
+                    <div class="section-header mb-3">
+                        <h6 class="text-primary">
+                            <i class="fas fa-user me-2"></i>Personal Information
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="name" name="name" placeholder="Full Name" required>
+                                <label for="name">Full Name *</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number" required>
+                                <label for="phone">Phone Number *</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="email" class="form-control" id="email" name="email" placeholder="Email Address">
+                                <label for="email">Email Address</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="tel" class="form-control" id="whatsapp" name="whatsapp" placeholder="WhatsApp Number">
+                                <label for="whatsapp">WhatsApp Number</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lead Details -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-info-circle me-2"></i>Lead Details
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="course_interest_id" name="course_interest_id">
+                                    <option value="">Select Course</option>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                                <label for="course_interest_id">Course Interest</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="lead_source" name="lead_source">
+                                    <option value="">Select Source</option>
+                                    <option value="Website">Website</option>
+                                    <option value="Social Media">Social Media</option>
+                                    <option value="Referral">Referral</option>
+                                    <option value="Advertisement">Advertisement</option>
+                                    <option value="Walk-in">Walk-in</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <label for="lead_source">Lead Source</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="status" name="status">
+                                    <option value="New">New</option>
+                                    <option value="Contacted">Contacted</option>
+                                    <option value="Interested">Interested</option>
+                                    <option value="Quoted">Quoted</option>
+                                    <option value="Converted">Converted</option>
+                                    <option value="Lost">Lost</option>
+                                </select>
+                                <label for="status">Status</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="quoted_amount" name="quoted_amount" 
+                                       placeholder="Quoted Amount" step="0.01" min="0">
+                                <label for="quoted_amount">Quoted Amount ($)</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Follow-up Information -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-calendar-alt me-2"></i>Follow-up Information
+                        </h6>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="date" class="form-control" id="next_followup_date" name="next_followup_date">
+                                <label for="next_followup_date">Next Follow-up Date</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="followup_type" name="followup_type">
+                                    <option value="">Select Type</option>
+                                    <option value="Call">Call</option>
+                                    <option value="Email">Email</option>
+                                    <option value="WhatsApp">WhatsApp</option>
+                                    <option value="Meeting">Meeting</option>
+                                </select>
+                                <label for="followup_type">Follow-up Type</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Comments -->
+                    <div class="form-floating mb-3">
+                        <textarea class="form-control" id="comments" name="comments" 
+                                  placeholder="Additional comments..." style="height: 100px"></textarea>
+                        <label for="comments">Comments</label>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="saveAndAddAnother">
+                        <i class="fas fa-plus me-2"></i>Save & Add Another
+                    </button>
+                    <button type="submit" class="btn btn-primary-custom">
+                        <i class="fas fa-save me-2"></i>Save Lead
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-populate WhatsApp from phone
+    document.getElementById('phone').addEventListener('blur', function() {
+        const whatsappField = document.getElementById('whatsapp');
+        if (!whatsappField.value && this.value) {
+            whatsappField.value = this.value;
+        }
+    });
+    
+    // Save and add another functionality
+    document.getElementById('saveAndAddAnother').addEventListener('click', function() {
+        const form = document.getElementById('leadForm');
+        if (validateForm('leadForm')) {
+            // Add hidden field to indicate save and add another
+            const hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = 'save_and_add_another';
+            hiddenField.value = 'true';
+            form.appendChild(hiddenField);
+            
+            form.submit();
+        }
+    });
+    
+    // Form validation
+    document.getElementById('leadForm').addEventListener('submit', function(e) {
+        if (!validateForm('leadForm')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>

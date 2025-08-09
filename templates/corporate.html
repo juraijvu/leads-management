@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+
+{% block title %}Corporate Training - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Corporate Training</li>
+{% endblock %}
+
+{% block content %}
+<!-- Corporate Training Header -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2 class="mb-0">Corporate Training</h2>
+        <p class="text-muted">Manage enterprise training programs and deals</p>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="btn-group me-3" role="group">
+            <button type="button" class="btn btn-outline-secondary active" onclick="changeView('deals')">
+                <i class="fas fa-handshake me-2"></i>Deals
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="changeView('companies')">
+                <i class="fas fa-building me-2"></i>Companies
+            </button>
+        </div>
+        <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#corporateModal">
+            <i class="fas fa-plus me-2"></i>New Corporate Deal
+        </button>
+    </div>
+</div>
+
+<!-- Corporate Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-primary">{{ corporate_trainings | length }}</div>
+                <div class="stat-label">Total Deals</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-success">{{ corporate_trainings | selectattr("status", "equalto", "Confirmed") | list | length }}</div>
+                <div class="stat-label">Confirmed Deals</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-warning">{{ corporate_trainings | selectattr("status", "equalto", "Negotiation") | list | length }}</div>
+                <div class="stat-label">In Negotiation</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="dashboard-card">
+            <div class="stat-card">
+                <div class="stat-number text-info">${{ "{:,.0f}".format(corporate_trainings | sum(attribute='deal_value') if corporate_trainings else 0) }}</div>
+                <div class="stat-label">Total Value</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Corporate Deals Pipeline -->
+<div class="row mb-4" id="dealsView">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0">Corporate Deals Pipeline</h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="changePipelineView('kanban')">
+                        <i class="fas fa-columns me-1"></i>Kanban
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="changePipelineView('list')">
+                        <i class="fas fa-list me-1"></i>List
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Kanban Pipeline View -->
+            <div id="kanbanView" class="row">
+                {% set pipeline_statuses = ['Inquiry', 'Proposal', 'Negotiation', 'Confirmed', 'Completed'] %}
+                {% for status in pipeline_statuses %}
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                    <div class="pipeline-column corporate-pipeline" data-status="{{ status }}">
+                        <div class="pipeline-header pipeline-{{ status.lower() }}">
+                            <h6 class="mb-0">{{ status }}</h6>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small>{{ corporate_trainings | selectattr("status", "equalto", status) | list | length }}</small>
+                                <small>${{ "{:,.0f}".format(corporate_trainings | selectattr("status", "equalto", status) | sum(attribute='deal_value') or 0) }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="pipeline-leads" id="corporate-{{ status.lower() }}">
+                            {% for training in corporate_trainings if training.status == status %}
+                            <div class="lead-card corporate-card" data-deal-id="{{ training.id }}" draggable="true">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-1">{{ training.company_name }}</h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-link" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="viewCorporateDeal({{ training.id }})">
+                                                <i class="fas fa-eye me-2"></i>View Details
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="editCorporateDeal({{ training.id }})">
+                                                <i class="fas fa-edit me-2"></i>Edit
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="generateProposal({{ training.id }})">
+                                                <i class="fas fa-file-alt me-2"></i>Generate Proposal
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="small text-muted mb-2">
+                                    <i class="fas fa-user me-1"></i>{{ training.contact_person }}
+                                </div>
+                                
+                                <div class="small mb-2">
+                                    <span class="badge bg-info">{{ training.course.name }}</span>
+                                </div>
+                                
+                                <div class="small mb-2">
+                                    <i class="fas fa-users me-1"></i>{{ training.trainee_count }} trainees
+                                </div>
+                                
+                                {% if training.deal_value and training.deal_value > 0 %}
+                                <div class="small text-success fw-bold mb-2">
+                                    <i class="fas fa-dollar-sign me-1"></i>${{ "{:,.0f}".format(training.deal_value) }}
+                                </div>
+                                {% endif %}
+                                
+                                <div class="small text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Created {{ training.created_at.strftime('%b %d') }}
+                                </div>
+                                
+                                <div class="mt-2 pt-2 border-top">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-outline-primary flex-fill" onclick="contactCompany('{{ training.contact_email }}')" title="Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success flex-fill" onclick="callCompany('{{ training.contact_phone }}')" title="Call">
+                                            <i class="fas fa-phone"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info flex-fill" onclick="scheduleMeeting({{ training.id }})" title="Meeting">
+                                            <i class="fas fa-calendar"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            
+                            {% if not corporate_trainings | selectattr("status", "equalto", status) | list %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p class="small mb-0">No deals in {{ status.lower() }} status</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- List Pipeline View -->
+            <div id="listView" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Contact</th>
+                                <th>Course</th>
+                                <th>Trainees</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for training in corporate_trainings %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <div class="fw-bold">{{ training.company_name }}</div>
+                                        {% if training.industry %}
+                                        <small class="text-muted">{{ training.industry }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <div>{{ training.contact_person }}</div>
+                                        <small class="text-muted">{{ training.contact_email }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ training.course.name }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold">{{ training.trainee_count }}</span>
+                                    {% if training.company_size %}
+                                    <small class="text-muted d-block">{{ training.company_size }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if training.deal_value and training.deal_value > 0 %}
+                                    <span class="fw-bold text-success">${{ "{:,.0f}".format(training.deal_value) }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Not quoted</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ training.status.lower() }}">
+                                        {{ training.status }}
+                                    </span>
+                                </td>
+                                <td>{{ training.created_at.strftime('%b %d, %Y') }}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewCorporateDeal({{ training.id }})" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-warning" onclick="editCorporateDeal({{ training.id }})" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" onclick="generateProposal({{ training.id }})" title="Proposal">
+                                            <i class="fas fa-file-alt"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Companies View -->
+<div class="row mb-4" id="companiesView" style="display: none;">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5 class="mb-4">Corporate Clients</h5>
+            
+            <div class="row">
+                {% set unique_companies = corporate_trainings | groupby('company_name') %}
+                {% for company_name, trainings in unique_companies %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="company-card">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="company-logo bg-primary text-white rounded d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 50px; height: 50px;">
+                                {{ company_name[0].upper() }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ company_name }}</h6>
+                                {% set first_training = trainings | first %}
+                                {% if first_training.industry %}
+                                <small class="text-muted">{{ first_training.industry }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="company-stats mb-3">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="stat-number text-primary">{{ trainings | list | length }}</div>
+                                    <div class="stat-label">Deals</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stat-number text-success">{{ trainings | sum(attribute='trainee_count') }}</div>
+                                    <div class="stat-label">Trainees</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stat-number text-info">${{ "{:,.0f}".format(trainings | sum(attribute='deal_value') or 0) }}</div>
+                                    <div class="stat-label">Value</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="company-contact mb-3">
+                            <div class="small">
+                                <div><i class="fas fa-user me-2"></i>{{ first_training.contact_person }}</div>
+                                <div><i class="fas fa-envelope me-2"></i>{{ first_training.contact_email }}</div>
+                                <div><i class="fas fa-phone me-2"></i>{{ first_training.contact_phone }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary flex-fill" onclick="viewCompanyDeals('{{ company_name }}')">
+                                <i class="fas fa-eye me-1"></i>View Deals
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="contactCompany('{{ first_training.contact_email }}')">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="callCompany('{{ first_training.contact_phone }}')">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Corporate Deal Modal -->
+<div class="modal fade" id="corporateModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-building me-2"></i>New Corporate Training Deal
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Corporate form content -->
+                <p class="text-center text-muted">Corporate training form will be implemented here</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Corporate Deal Detail Modal -->
+<div class="modal fade" id="corporateDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Corporate Deal Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="corporateDetailContent">
+                <!-- Corporate deal details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Corporate training JavaScript
+let currentCorporateView = 'deals';
+let currentPipelineView = 'kanban';
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCorporateDragDrop();
+});
+
+function changeView(view) {
+    currentCorporateView = view;
+    
+    // Update active button
+    document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    if (view === 'deals') {
+        document.getElementById('dealsView').style.display = '';
+        document.getElementById('companiesView').style.display = 'none';
+    } else {
+        document.getElementById('dealsView').style.display = 'none';
+        document.getElementById('companiesView').style.display = '';
+    }
+}
+
+function changePipelineView(view) {
+    currentPipelineView = view;
+    
+    // Update active button
+    event.target.parentElement.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    if (view === 'kanban') {
+        document.getElementById('kanbanView').style.display = '';
+        document.getElementById('listView').style.display = 'none';
+    } else {
+        document.getElementById('kanbanView').style.display = 'none';
+        document.getElementById('listView').style.display = '';
+    }
+}
+
+function initializeCorporateDragDrop() {
+    const pipelineColumns = document.querySelectorAll('.corporate-pipeline');
+    const corporateCards = document.querySelectorAll('.corporate-card');
+    
+    corporateCards.forEach(card => {
+        card.addEventListener('dragstart', handleCorporateDragStart);
+        card.addEventListener('dragend', handleCorporateDragEnd);
+    });
+    
+    pipelineColumns.forEach(column => {
+        column.addEventListener('dragover', handleCorporateDragOver);
+        column.addEventListener('drop', handleCorporateDrop);
+        column.addEventListener('dragenter', handleCorporateDragEnter);
+        column.addEventListener('dragleave', handleCorporateDragLeave);
+    });
+}
+
+function handleCorporateDragStart(e) {
+    this.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', this.dataset.dealId);
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleCorporateDragEnd(e) {
+    this.classList.remove('dragging');
+}
+
+function handleCorporateDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleCorporateDragEnter(e) {
+    e.preventDefault();
+    this.classList.add('drag-over');
+}
+
+function handleCorporateDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleCorporateDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    
+    const dealId = e.dataTransfer.getData('text/plain');
+    const newStatus = this.dataset.status;
+    
+    if (dealId && newStatus) {
+        updateCorporateDealStatus(dealId, newStatus);
+    }
+}
+
+function updateCorporateDealStatus(dealId, newStatus) {
+    showLoading();
+    
+    // Simulate API call
+    setTimeout(() => {
+        hideLoading();
+        showNotification(`Deal status updated to ${newStatus}!`, 'success');
+        
+        // Move the card to the new column
+        moveCorporateCard(dealId, newStatus);
+        updateCorporateStats();
+    }, 500);
+}
+
+function moveCorporateCard(dealId, newStatus) {
+    const dealCard = document.querySelector(`[data-deal-id="${dealId}"]`);
+    const targetColumn = document.querySelector(`[data-status="${newStatus}"] .pipeline-leads`);
+    
+    if (dealCard && targetColumn) {
+        dealCard.style.opacity = '0';
+        setTimeout(() => {
+            targetColumn.appendChild(dealCard);
+            dealCard.style.opacity = '1';
+            dealCard.classList.add('fade-in');
+        }, 200);
+    }
+}
+
+function updateCorporateStats() {
+    // Update statistics after status change
+    console.log('Updating corporate statistics...');
+}
+
+function viewCorporateDeal(dealId) {
+    const dealData = getCorporateDealData(dealId);
+    
+    const content = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="deal-details">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="company-logo bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px;">
+                            ${dealData.company_name[0].toUpperCase()}
+                        </div>
+                        <div>
+                            <h4 class="mb-1">${dealData.company_name}</h4>
+                            <p class="text-muted mb-1">${dealData.industry || 'Industry not specified'}</p>
+                            <span class="status-badge status-${dealData.status.toLowerCase()}">${dealData.status}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Contact Information</h6>
+                            <p><strong>Contact Person:</strong> ${dealData.contact_person}</p>
+                            <p><strong>Email:</strong> ${dealData.contact_email}</p>
+                            <p><strong>Phone:</strong> ${dealData.contact_phone}</p>
+                            <p><strong>Company Size:</strong> ${dealData.company_size || 'Not specified'}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Training Details</h6>
+                            <p><strong>Course:</strong> ${dealData.course_name}</p>
+                            <p><strong>Trainees:</strong> ${dealData.trainee_count}</p>
+                            <p><strong>Training Mode:</strong> ${dealData.training_mode || 'Not specified'}</p>
+                            <p><strong>Budget Range:</strong> ${dealData.budget_range || 'Not disclosed'}</p>
+                        </div>
+                    </div>
+                    
+                    ${dealData.special_requirements ? `
+                    <div class="mb-4">
+                        <h6>Special Requirements</h6>
+                        <p>${dealData.special_requirements}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="deal-sidebar">
+                    <h6>Deal Information</h6>
+                    
+                    <div class="deal-stats mb-4">
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span>Deal Value</span>
+                            <span class="fw-bold text-success">${dealData.deal_value ? '$' + dealData.deal_value.toLocaleString() : 'Not quoted'}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2 border-bottom">
+                            <span>Created Date</span>
+                            <span>${dealData.created_at}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-2">
+                            <span>Last Updated</span>
+                            <span>${dealData.updated_at || dealData.created_at}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="deal-actions">
+                        <h6>Quick Actions</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="generateProposal(${dealData.id})">
+                                <i class="fas fa-file-alt me-2"></i>Generate Proposal
+                            </button>
+                            <button class="btn btn-outline-success" onclick="contactCompany('${dealData.contact_email}')">
+                                <i class="fas fa-envelope me-2"></i>Send Email
+                            </button>
+                            <button class="btn btn-outline-info" onclick="scheduleMeeting(${dealData.id})">
+                                <i class="fas fa-calendar me-2"></i>Schedule Meeting
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="editCorporateDeal(${dealData.id})">
+                                <i class="fas fa-edit me-2"></i>Edit Deal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('corporateDetailContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('corporateDetailModal')).show();
+}
+
+function getCorporateDealData(dealId) {
+    // In a real application, this would fetch from the server
+    return {
+        id: dealId,
+        company_name: 'Tech Solutions Inc.',
+        industry: 'Technology',
+        contact_person: 'John Smith',
+        contact_email: 'john.smith@techsolutions.com',
+        contact_phone: '+1234567890',
+        company_size: '51-200 employees',
+        course_name: 'Advanced Web Development',
+        trainee_count: 25,
+        training_mode: 'Hybrid',
+        budget_range: '$50,000 - $75,000',
+        deal_value: 65000,
+        status: 'Negotiation',
+        created_at: 'Jan 15, 2024',
+        updated_at: 'Jan 20, 2024',
+        special_requirements: 'Custom curriculum focusing on modern frameworks and team collaboration tools.'
+    };
+}
+
+function editCorporateDeal(dealId) {
+    window.location.href = `/corporate/${dealId}/edit`;
+}
+
+function generateProposal(dealId) {
+    if (confirm('Generate training proposal for this deal?')) {
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+            showNotification('Training proposal generated successfully!', 'success');
+        }, 1000);
+    }
+}
+
+function contactCompany(email) {
+    const subject = encodeURIComponent('Corporate Training Proposal Follow-up');
+    const body = encodeURIComponent('Dear Team,\n\nI hope this email finds you well. I wanted to follow up on our corporate training discussion.\n\nBest regards,\nTraining Center Team');
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+}
+
+function callCompany(phone) {
+    if (confirm(`Call ${phone}?`)) {
+        window.open(`tel:${phone}`);
+    }
+}
+
+function scheduleMeeting(dealId) {
+    showNotification('Meeting scheduling feature will be implemented!', 'info');
+}
+
+function viewCompanyDeals(companyName) {
+    // Filter deals by company name
+    showNotification(`Filtering deals for ${companyName}`, 'info');
+}
+
+// Add corporate-specific styles
+const style = document.createElement('style');
+style.textContent = `
+    .corporate-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: move;
+        transition: all 0.3s ease;
+        border-left: 4px solid #007bff;
+    }
+    .corporate-card:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    .corporate-card.dragging {
+        opacity: 0.5;
+        transform: rotate(3deg);
+    }
+    .company-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid #e9ecef;
+    }
+    .company-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+    .company-logo {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    .pipeline-inquiry { background: linear-gradient(135deg, #3498db, #2980b9); }
+    .pipeline-proposal { background: linear-gradient(135deg, #f39c12, #e67e22); }
+    .pipeline-negotiation { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+    .pipeline-confirmed { background: linear-gradient(135deg, #27ae60, #229954); }
+    .pipeline-completed { background: linear-gradient(135deg, #2c3e50, #34495e); }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

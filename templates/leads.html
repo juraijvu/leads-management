@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Leads - Training Center CRM{% endblock %}
+
+{% block breadcrumb %}
+{{ super() }}
+<li class="breadcrumb-item active">Leads</li>
+{% endblock %}
+
+{% block content %}
+<!-- Search and Filter Bar -->
+<div class="search-filter-bar">
+    <div class="row align-items-center">
+        <div class="col-md-4">
+            <div class="input-group">
+                <input type="text" class="form-control search-input" placeholder="Search leads..." 
+                       id="searchInput" value="{{ search }}">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select filter-select" name="status" onchange="applyFilters()">
+                        <option value="">All Status</option>
+                        {% for status in statuses %}
+                        <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>
+                            {{ status }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select filter-select" name="course" onchange="applyFilters()">
+                        <option value="">All Courses</option>
+                        {% for course in courses %}
+                        <option value="{{ course.id }}" {% if course_filter == course.id|string %}selected{% endif %}>
+                            {{ course.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select filter-select" name="source">
+                        <option value="">All Sources</option>
+                        <option value="Website">Website</option>
+                        <option value="Social Media">Social Media</option>
+                        <option value="Referral">Referral</option>
+                        <option value="Advertisement">Advertisement</option>
+                        <option value="Walk-in">Walk-in</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2 text-end">
+            <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#leadModal">
+                <i class="fas fa-plus me-2"></i>Add Lead
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div id="searchResults" class="alert alert-info" style="display: none;"></div>
+
+<!-- Leads Table -->
+<div class="custom-table">
+    <div class="table-responsive">
+        <table class="table table-hover data-table">
+            <thead>
+                <tr>
+                    <th>
+                        <input type="checkbox" class="form-check-input" id="selectAll">
+                    </th>
+                    <th>Lead</th>
+                    <th>Contact</th>
+                    <th>Course Interest</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Quoted Amount</th>
+                    <th>Last Contact</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lead in leads %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="form-check-input lead-select" value="{{ lead.id }}">
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" 
+                                 style="width: 40px; height: 40px;">
+                                {{ lead.name[0].upper() }}
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ lead.name }}</div>
+                                <small class="text-muted">
+                                    Created {{ lead.created_at.strftime('%b %d, %Y') }}
+                                </small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <div><i class="fas fa-phone text-primary me-2"></i>{{ lead.phone }}</div>
+                            {% if lead.email %}
+                            <div><i class="fas fa-envelope text-success me-2"></i>{{ lead.email }}</div>
+                            {% endif %}
+                            {% if lead.whatsapp %}
+                            <div><i class="fab fa-whatsapp text-success me-2"></i>{{ lead.whatsapp }}</div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td data-course="{{ lead.course_interest.name if lead.course_interest else '' }}">
+                        {% if lead.course_interest %}
+                            <span class="badge bg-info">{{ lead.course_interest.name }}</span>
+                        {% else %}
+                            <span class="text-muted">Not specified</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if lead.lead_source %}
+                            <span class="badge bg-secondary">{{ lead.lead_source }}</span>
+                        {% else %}
+                            <span class="text-muted">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td data-status="{{ lead.status }}">
+                        <span class="status-badge status-{{ lead.status.lower() }}">
+                            {{ lead.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if lead.quoted_amount and lead.quoted_amount > 0 %}
+                            <span class="fw-bold text-success">${{ "{:,.2f}".format(lead.quoted_amount) }}</span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if lead.last_contact_date %}
+                            {{ lead.last_contact_date.strftime('%b %d, %Y') }}
+                        {% else %}
+                            <span class="text-muted">Never</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline-primary" title="Call" 
+                                    onclick="makeCall('{{ lead.phone }}')">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            {% if lead.whatsapp %}
+                            <button class="btn btn-sm btn-outline-success" title="WhatsApp" 
+                                    onclick="openWhatsApp('{{ lead.whatsapp }}')">
+                                <i class="fab fa-whatsapp"></i>
+                            </button>
+                            {% endif %}
+                            {% if lead.email %}
+                            <button class="btn btn-sm btn-outline-info" title="Email" 
+                                    onclick="sendEmail('{{ lead.email }}')">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-warning" title="Edit" 
+                                    onclick="editLead({{ lead.id }})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if lead.status != 'Converted' and lead.course_interest %}
+                            <form method="POST" action="{{ url_for('main.convert_lead', id=lead.id) }}" 
+                                  style="display: inline;" onsubmit="return confirm('Convert this lead to student?')">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Convert to Student">
+                                    <i class="fas fa-user-graduate"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% if not leads %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No leads found</h5>
+            <p class="text-muted">Start by adding your first lead to the system.</p>
+            <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#leadModal">
+                <i class="fas fa-plus me-2"></i>Add First Lead
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination and pagination.pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.leads', page=pagination.prev_num, search=search, status=status_filter, course=course_filter) }}">
+                Previous
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+                {% if page_num != pagination.page %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('main.leads', page=page_num, search=search, status=status_filter, course=course_filter) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% endif %}
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if pagination.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('main.leads', page=pagination.next_num, search=search, status=status_filter, course=course_filter) }}">
+                Next
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Bulk Actions -->
+<div class="mt-3">
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted">Bulk Actions:</span>
+        <button class="btn btn-sm btn-outline-primary" onclick="bulkAction('status', 'Contacted')" disabled id="bulkStatusBtn">
+            Mark as Contacted
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="bulkAction('delete')" disabled id="bulkDeleteBtn">
+            Delete Selected
+        </button>
+        <span class="text-muted ms-auto">
+            <span id="selectedCount">0</span> leads selected
+        </span>
+    </div>
+</div>
+
+<!-- Lead Modal -->
+{% include 'modals/lead_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Lead management JavaScript
+let selectedLeads = [];
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    const rows = document.querySelectorAll('.data-table tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(query)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    updateSearchResults(query, visibleCount);
+});
+
+function updateSearchResults(query, count) {
+    const resultsDiv = document.getElementById('searchResults');
+    if (query) {
+        resultsDiv.textContent = `Found ${count} results for "${query}"`;
+        resultsDiv.style.display = 'block';
+    } else {
+        resultsDiv.style.display = 'none';
+    }
+}
+
+// Filter functionality
+function applyFilters() {
+    const statusFilter = document.querySelector('select[name="status"]').value;
+    const courseFilter = document.querySelector('select[name="course"]').value;
+    const sourceFilter = document.querySelector('select[name="source"]').value;
+    
+    // Update URL with filters
+    const params = new URLSearchParams(window.location.search);
+    if (statusFilter) params.set('status', statusFilter);
+    else params.delete('status');
+    
+    if (courseFilter) params.set('course', courseFilter);
+    else params.delete('course');
+    
+    if (sourceFilter) params.set('source', sourceFilter);
+    else params.delete('source');
+    
+    window.location.search = params.toString();
+}
+
+// Select all functionality
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.lead-select');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateSelectedLeads();
+});
+
+// Individual checkbox functionality
+document.querySelectorAll('.lead-select').forEach(checkbox => {
+    checkbox.addEventListener('change', updateSelectedLeads);
+});
+
+function updateSelectedLeads() {
+    selectedLeads = Array.from(document.querySelectorAll('.lead-select:checked')).map(cb => cb.value);
+    document.getElementById('selectedCount').textContent = selectedLeads.length;
+    
+    // Enable/disable bulk action buttons
+    const bulkButtons = document.querySelectorAll('#bulkStatusBtn, #bulkDeleteBtn');
+    bulkButtons.forEach(btn => {
+        btn.disabled = selectedLeads.length === 0;
+    });
+}
+
+// Action functions
+function makeCall(phone) {
+    if (confirm(`Call ${phone}?`)) {
+        window.open(`tel:${phone}`);
+    }
+}
+
+function openWhatsApp(phone) {
+    const message = encodeURIComponent("Hi! I'm reaching out regarding your interest in our training courses.");
+    window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+}
+
+function sendEmail(email) {
+    const subject = encodeURIComponent("Training Course Inquiry Follow-up");
+    const body = encodeURIComponent("Hi,\n\nThank you for your interest in our training courses. I'd like to discuss how we can help you achieve your learning goals.\n\nBest regards,\nTraining Center Team");
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+}
+
+function editLead(leadId) {
+    // Redirect to edit form
+    window.location.href = `/leads/${leadId}/edit`;
+}
+
+function bulkAction(action, value = null) {
+    if (selectedLeads.length === 0) {
+        alert('Please select leads first.');
+        return;
+    }
+    
+    let confirmMessage = '';
+    if (action === 'delete') {
+        confirmMessage = `Delete ${selectedLeads.length} selected leads?`;
+    } else if (action === 'status') {
+        confirmMessage = `Mark ${selectedLeads.length} leads as ${value}?`;
+    }
+    
+    if (confirm(confirmMessage)) {
+        // Show loading
+        showLoading();
+        
+        // Simulate bulk action
+        setTimeout(() => {
+            hideLoading();
+            showNotification(`Bulk action completed successfully!`, 'success');
+            
+            if (action === 'delete') {
+                // Remove rows from table
+                selectedLeads.forEach(leadId => {
+                    const checkbox = document.querySelector(`.lead-select[value="${leadId}"]`);
+                    if (checkbox) {
+                        checkbox.closest('tr').remove();
+                    }
+                });
+            } else if (action === 'status') {
+                // Update status badges
+                selectedLeads.forEach(leadId => {
+                    const checkbox = document.querySelector(`.lead-select[value="${leadId}"]`);
+                    if (checkbox) {
+                        const statusBadge = checkbox.closest('tr').querySelector('.status-badge');
+                        if (statusBadge) {
+                            statusBadge.className = `status-badge status-${value.toLowerCase()}`;
+                            statusBadge.textContent = value;
+                        }
+                    }
+                });
+            }
+            
+            // Clear selection
+            selectedLeads = [];
+            document.getElementById('selectAll').checked = false;
+            document.querySelectorAll('.lead-select').forEach(cb => cb.checked = false);
+            updateSelectedLeads();
+        }, 1000);
+    }
+}
+</script>
+{% endblock %}
