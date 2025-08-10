@@ -369,7 +369,119 @@
             </div>
             <div class="modal-body">
                 <!-- Student form content -->
-                <p class="text-center text-muted">Student form will be implemented here</p>
+                <form method="POST" action="{{ url_for('main.add_student') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Personal Information -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Personal Information</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.first_name.label(class="form-label") }}
+                                {{ form.first_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.last_name.label(class="form-label") }}
+                                {{ form.last_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.country_code.label(class="form-label") }}
+                                {{ form.country_code(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.phone.label(class="form-label") }}
+                                {{ form.phone(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course and Schedule -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Course & Schedule</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.course_id.label(class="form-label") }}
+                                {{ form.course_id(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.batch_name.label(class="form-label") }}
+                                {{ form.batch_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.schedule_days.label(class="form-label") }}
+                                {{ form.schedule_days(class="form-control", onchange="toggleScheduleOptions(this)") }}
+                                <div class="form-text">
+                                    Note: If weekends are selected, weekday options will be disabled
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.schedule_time.label(class="form-label") }}
+                                {{ form.schedule_time(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.start_date.label(class="form-label") }}
+                                {{ form.start_date(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.end_date.label(class="form-label") }}
+                                {{ form.end_date(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Payment Information</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.total_fee.label(class="form-label") }}
+                                {{ form.total_fee(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.fee_paid.label(class="form-label") }}
+                                {{ form.fee_paid(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.payment_plan.label(class="form-label") }}
+                                {{ form.payment_plan(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Student</button>
+                </form>
             </div>
         </div>
     </div>

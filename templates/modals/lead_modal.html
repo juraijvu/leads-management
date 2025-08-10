@@ -1,35 +1,35 @@
-<!-- Lead Modal -->
+<!-- modals/lead_modal.html -->
 <div class="modal fade" id="leadModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="fas fa-user-plus me-2"></i>
-                    <span id="leadModalTitle">Add New Lead</span>
+                    <span id="leadModalTitle">{{ title | default('Add New Lead') }}</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             
-            <form method="POST" action="{{ url_for('main.add_lead') }}" id="leadForm" class="auto-save-form">
-                {{ form.csrf_token }}
+            <form method="POST" action="{{ url_for('main.add_lead') }}" id="leadForm">
+                {{ lead_form.csrf_token }}
                 <div class="modal-body">
-                    <!-- Personal Information -->
+                    <!-- Lead Information -->
                     <div class="section-header mb-3">
                         <h6 class="text-primary">
-                            <i class="fas fa-user me-2"></i>Personal Information
+                            <i class="fas fa-user me-2"></i>Lead Information
                         </h6>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="text" class="form-control" id="name" name="name" placeholder="Full Name" required>
+                                {{ lead_form.name(class="form-control", placeholder="Full Name") }}
                                 <label for="name">Full Name *</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="Phone Number" required>
+                                {{ lead_form.phone(class="form-control", placeholder="Phone Number") }}
                                 <label for="phone">Phone Number *</label>
                             </div>
                         </div>
@@ -38,16 +38,28 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="email" class="form-control" id="email" name="email" placeholder="Email Address">
+                                {{ lead_form.email(class="form-control", placeholder="Email Address") }}
                                 <label for="email">Email Address</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="tel" class="form-control" id="whatsapp" name="whatsapp" placeholder="WhatsApp Number">
+                                {{ lead_form.whatsapp(class="form-control", placeholder="WhatsApp Number") }}
                                 <label for="whatsapp">WhatsApp Number</label>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Course Interest -->
+                    <div class="section-header mb-3 mt-4">
+                        <h6 class="text-primary">
+                            <i class="fas fa-book me-2"></i>Course Interest
+                        </h6>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        {{ lead_form.course_interest_id(class="form-select") }}
+                        <label for="course_interest_id">Course Interest</label>
                     </div>
                     
                     <!-- Lead Details -->
@@ -60,84 +72,40 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <div class="form-floating mb-3">
-    {{ form.course_interest_id(class="form-select", id="course_interest_id") }}
-    
-</div>
-                                <label for="course_interest_id">Course Interest</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-floating mb-3">
-                                <select class="form-select" id="lead_source" name="lead_source">
-                                    <option value="">Select Source</option>
-                                    <option value="Website">Website</option>
-                                    <option value="Social Media">Social Media</option>
-                                    <option value="Referral">Referral</option>
-                                    <option value="Advertisement">Advertisement</option>
-                                    <option value="Walk-in">Walk-in</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                                {{ lead_form.lead_source(class="form-select") }}
                                 <label for="lead_source">Lead Source</label>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="status" name="status">
-                                    <option value="New">New</option>
-                                    <option value="Contacted">Contacted</option>
-                                    <option value="Interested">Interested</option>
-                                    <option value="Quoted">Quoted</option>
-                                    <option value="Converted">Converted</option>
-                                    <option value="Lost">Lost</option>
-                                </select>
+                                {{ lead_form.status(class="form-select") }}
                                 <label for="status">Status</label>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-floating mb-3">
-                                <input type="number" class="form-control" id="quoted_amount" name="quoted_amount" 
-                                       placeholder="Quoted Amount" step="0.01" min="0">
-                                <label for="quoted_amount">Quoted Amount ($)</label>
-                            </div>
-                        </div>
                     </div>
                     
-                    <!-- Follow-up Information -->
-                    <div class="section-header mb-3 mt-4">
-                        <h6 class="text-primary">
-                            <i class="fas fa-calendar-alt me-2"></i>Follow-up Information
-                        </h6>
+                    <div class="form-floating mb-3">
+                        {{ lead_form.quoted_amount(class="form-control", placeholder="Quoted Amount") }}
+                        <label for="quoted_amount">Quoted Amount ($)</label>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="date" class="form-control" id="next_followup_date" name="next_followup_date">
+                                {{ lead_form.next_followup_date(class="form-control") }}
                                 <label for="next_followup_date">Next Follow-up Date</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="followup_type" name="followup_type">
-                                    <option value="">Select Type</option>
-                                    <option value="Call">Call</option>
-                                    <option value="Email">Email</option>
-                                    <option value="WhatsApp">WhatsApp</option>
-                                    <option value="Meeting">Meeting</option>
-                                </select>
+                                {{ lead_form.followup_type(class="form-select") }}
                                 <label for="followup_type">Follow-up Type</label>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Comments -->
                     <div class="form-floating mb-3">
-                        <textarea class="form-control" id="comments" name="comments" 
-                                  placeholder="Additional comments..." style="height: 100px"></textarea>
+                        {{ lead_form.comments(class="form-control", style="height: 100px", placeholder="Comments") }}
                         <label for="comments">Comments</label>
                     </div>
                 </div>
@@ -145,9 +113,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-2"></i>Cancel
-                    </button>
-                    <button type="button" class="btn btn-outline-primary" id="saveAndAddAnother">
-                        <i class="fas fa-plus me-2"></i>Save & Add Another
                     </button>
                     <button type="submit" class="btn btn-primary-custom">
                         <i class="fas fa-save me-2"></i>Save Lead
@@ -157,9 +122,10 @@
         </div>
     </div>
 </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('next_followup_date').min = today;
     // Auto-populate WhatsApp from phone
     document.getElementById('phone').addEventListener('blur', function() {
         const whatsappField = document.getElementById('whatsapp');

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">System Settings</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Company Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary border-bottom pb-2">Company Information</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.company_name.label(class="form-label") }}
+                                    {{ form.company_name(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.company_email.label(class="form-label") }}
+                                    {{ form.company_email(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.company_phone.label(class="form-label") }}
+                                    {{ form.company_phone(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.company_address.label(class="form-label") }}
+                                    {{ form.company_address(class="form-control", rows="3") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary border-bottom pb-2">Email Configuration</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.mail_server.label(class="form-label") }}
+                                    {{ form.mail_server(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.mail_port.label(class="form-label") }}
+                                    {{ form.mail_port(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.mail_username.label(class="form-label") }}
+                                    {{ form.mail_username(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.mail_password.label(class="form-label") }}
+                                    {{ form.mail_password(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check mb-3">
+                                    {{ form.mail_use_tls(class="form-check-input") }}
+                                    {{ form.mail_use_tls.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Gateway Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary border-bottom pb-2">Payment Gateway Integration</h5>
+                            </div>
+                            
+                            <!-- Vault Pay -->
+                            <div class="col-md-6">
+                                <h6 class="text-info">Vault Pay</h6>
+                                <div class="mb-3">
+                                    {{ form.vault_api_key.label(class="form-label") }}
+                                    {{ form.vault_api_key(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ form.vault_secret_key.label(class="form-label") }}
+                                    {{ form.vault_secret_key(class="form-control", type="password") }}
+                                </div>
+                            </div>
+                            
+                            <!-- Tabby -->
+                            <div class="col-md-6">
+                                <h6 class="text-info">Tabby</h6>
+                                <div class="mb-3">
+                                    {{ form.tabby_public_key.label(class="form-label") }}
+                                    {{ form.tabby_public_key(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ form.tabby_secret_key.label(class="form-label") }}
+                                    {{ form.tabby_secret_key(class="form-control", type="password") }}
+                                </div>
+                            </div>
+                            
+                            <!-- Tamara -->
+                            <div class="col-md-6">
+                                <h6 class="text-info">Tamara</h6>
+                                <div class="mb-3">
+                                    {{ form.tamara_api_key.label(class="form-label") }}
+                                    {{ form.tamara_api_key(class="form-control") }}
+                                </div>
+                                <div class="mb-3">
+                                    {{ form.tamara_secret_key.label(class="form-label") }}
+                                    {{ form.tamara_secret_key(class="form-control", type="password") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Default Settings -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="text-primary border-bottom pb-2">Default Settings</h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.default_currency.label(class="form-label") }}
+                                    {{ form.default_currency(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.default_country_code.label(class="form-label") }}
+                                    {{ form.default_country_code(class="form-control") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-save"></i> Save Settings
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

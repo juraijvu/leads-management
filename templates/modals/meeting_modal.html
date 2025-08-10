@@ -11,6 +11,7 @@
             </div>
             
             <form method="POST" action="{{ url_for('main.add_meeting') }}" id="meetingForm">
+                {{ meeting_form.csrf_token }}
                 <div class="modal-body">
                     <!-- Meeting Participant -->
                     <div class="section-header mb-3">
@@ -22,19 +23,13 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="lead_id" name="lead_id">
-                                    <option value="">Select Lead</option>
-                                    <!-- Options will be populated dynamically -->
-                                </select>
+                                {{ meeting_form.lead_id(class="form-select", id="lead_id") }}
                                 <label for="lead_id">Lead</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="student_id" name="student_id">
-                                    <option value="">Select Student</option>
-                                    <!-- Options will be populated dynamically -->
-                                </select>
+                                {{ meeting_form.student_id(class="form-select", id="student_id") }}
                                 <label for="student_id">Student</label>
                             </div>
                         </div>
@@ -48,38 +43,26 @@
                     </div>
                     
                     <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="title" name="title" placeholder="Meeting Title" required>
+                        {{ meeting_form.title(class="form-control", placeholder="Meeting Title") }}
                         <label for="title">Meeting Title *</label>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-4">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="meeting_type" name="meeting_type" required>
-                                    <option value="">Select Type</option>
-                                    <option value="Online">Online</option>
-                                    <option value="Offline">Offline</option>
-                                </select>
+                                {{ meeting_form.meeting_type(class="form-select") }}
                                 <label for="meeting_type">Meeting Type *</label>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-floating mb-3">
-                                <input type="date" class="form-control" id="meeting_date" name="meeting_date" required>
+                                {{ meeting_form.meeting_date(class="form-control") }}
                                 <label for="meeting_date">Meeting Date *</label>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-floating mb-3">
-                                <select class="form-select" id="duration" name="duration" required>
-                                    <option value="">Duration</option>
-                                    <option value="15">15 minutes</option>
-                                    <option value="30">30 minutes</option>
-                                    <option value="45">45 minutes</option>
-                                    <option value="60">1 hour</option>
-                                    <option value="90">1.5 hours</option>
-                                    <option value="120">2 hours</option>
-                                </select>
+                                {{ meeting_form.duration(class="form-select") }}
                                 <label for="duration">Duration *</label>
                             </div>
                         </div>
@@ -88,8 +71,7 @@
                     <!-- Meeting Location/Link -->
                     <div id="onlineFields" style="display: none;">
                         <div class="form-floating mb-3">
-                            <input type="url" class="form-control" id="meeting_link" name="meeting_link" 
-                                   placeholder="https://zoom.us/j/123456789">
+                            {{ meeting_form.meeting_link(class="form-control", placeholder="https://zoom.us/j/123456789") }}
                             <label for="meeting_link">Meeting Link</label>
                             <div class="form-text">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -100,8 +82,7 @@
                     
                     <div id="offlineFields" style="display: none;">
                         <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="location" name="location" 
-                                   placeholder="Office conference room, client location, etc.">
+                            {{ meeting_form.location(class="form-control", placeholder="Office conference room, client location, etc.") }}
                             <label for="location">Meeting Location</label>
                         </div>
                     </div>
@@ -114,8 +95,7 @@
                     </div>
                     
                     <div class="form-floating mb-3">
-                        <textarea class="form-control" id="agenda" name="agenda" 
-                                  placeholder="Meeting agenda and discussion points..." style="height: 120px"></textarea>
+                        {{ meeting_form.agenda(class="form-control", style="height: 120px", placeholder="Meeting agenda and discussion points...") }}
                         <label for="agenda">Agenda</label>
                         <div class="form-text">
                             <span id="agendaCount">0</span>/500 characters
@@ -129,39 +109,31 @@
                         </h6>
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="email_reminder" name="email_reminder" checked>
-                                <label class="form-check-label" for="email_reminder">
-                                    <i class="fas fa-envelope me-2"></i>Email Reminder
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="checkbox" id="sms_reminder" name="sms_reminder">
-                                <label class="form-check-label" for="sms_reminder">
-                                    <i class="fas fa-sms me-2"></i>SMS Reminder
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-floating mb-3">
-                                <select class="form-select" id="reminder_time" name="reminder_time">
-                                    <option value="15">15 minutes before</option>
-                                    <option value="30">30 minutes before</option>
-                                    <option value="60" selected>1 hour before</option>
-                                    <option value="120">2 hours before</option>
-                                    <option value="1440">1 day before</option>
-                                </select>
-                                <label for="reminder_time">Reminder Time</label>
-                            </div>
-                        </div>
-                    </div>
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-check mb-3">
+            {{ meeting_form.email_reminder(class="form-check-input", id="email_reminder") }}
+            <label class="form-check-label" for="email_reminder">Send Email Reminder</label>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="form-check mb-3">
+            {{ meeting_form.sms_reminder(class="form-check-input", id="sms_reminder") }}
+            <label class="form-check-label" for="sms_reminder">
+                <i class="fas fa-sms me-2"></i>SMS Reminder
+            </label>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-floating mb-3">
+            {{ meeting_form.reminder_time(class="form-select", id="reminder_time") }}
+            <label for="reminder_time">Reminder Time</label>
+        </div>
+    </div>
+</div>
                 </div>
                 
                 <div class="modal-footer">
@@ -242,10 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             alert('Please select either a lead or a student for the meeting.');
             return;
-        }
-        
-        if (!validateForm('meetingForm')) {
-            e.preventDefault();
         }
     });
 });

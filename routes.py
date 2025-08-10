@@ -15,8 +15,12 @@ main = Blueprint('main', __name__)
 @main.route('/')
 @login_required
 def dashboard():
-    form = LeadForm()  # Create a LeadForm instance
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    lead_form = LeadForm()
+    lead_form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    meeting_form = MeetingForm()
+    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     # Dashboard statistics
     total_leads = Lead.query.count()
@@ -45,7 +49,8 @@ def dashboard():
                          recent_leads=recent_leads,
                          pipeline_data=pipeline_data,
                          monthly_revenue=monthly_revenue,
-                         form=form)  # Pass the form
+                         lead_form=lead_form,
+                         meeting_form=meeting_form)
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -72,8 +77,12 @@ def logout():
 @main.route('/leads')
 @login_required
 def leads():
-    form = LeadForm()  # Create a LeadForm instance
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    lead_form = LeadForm()
+    lead_form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    meeting_form = MeetingForm()
+    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
@@ -110,7 +119,8 @@ def leads():
                          search=search,
                          status_filter=status_filter,
                          course_filter=course_filter,
-                         form=form)  # Pass the form
+                         lead_form=lead_form,
+                         meeting_form=meeting_form)
 
 @main.route('/leads/add', methods=['GET', 'POST'])
 @login_required
@@ -196,8 +206,12 @@ def convert_lead(id):
 @main.route('/pipeline')
 @login_required
 def pipeline():
-    form = LeadForm()  # Create a LeadForm instance
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    lead_form = LeadForm()
+    lead_form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    meeting_form = MeetingForm()
+    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     # Get pipeline data grouped by status
     pipeline_data = db.session.query(
@@ -229,31 +243,51 @@ def pipeline():
                          pipeline_data=pipeline_dict,
                          leads_by_status=leads_by_status,
                          statuses=statuses,
-                         form=form)  # Pass the form
+                         lead_form=lead_form,
+                         meeting_form=meeting_form)
 
 @main.route('/meetings')
 @login_required
 def meetings():
-    # Get meetings for the current month
     today = date.today()
     start_of_month = today.replace(day=1)
     
-    # Calculate week boundaries (Monday to Sunday)
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
+    week_start = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
+    week_end = datetime.combine(week_start + timedelta(days=6), datetime.max.time())
     
     meetings = Meeting.query.filter(
         Meeting.meeting_date >= start_of_month
     ).order_by(Meeting.meeting_date).all()
     
-    # Format current date for calendar title
+    # Convert meetings to JSON-serializable list of dicts
+    meetings_data = [
+        {
+            'id': m.id,
+            'title': m.title,
+            'meeting_date': m.meeting_date.isoformat(),  # Convert to ISO string
+            'meeting_type': m.meeting_type,
+            'duration': m.duration,
+            'status': m.status,
+            'lead': {'name': m.lead.name} if m.lead else None,
+            'student': {'name': m.student.name} if m.student else None,
+            # Add other fields if needed (e.g., agenda, location)
+        } for m in meetings
+    ]
+    
     current_date = today.strftime('%B %Y')
     
+    meeting_form = MeetingForm()
+    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
+    
     return render_template('meetings.html',
-                         meetings=meetings,
+                         meetings=meetings,  # Keep the original for Jinja loops
+                         meetings_data=meetings_data,  # Serialized for JS
                          current_date=current_date,
                          week_start=week_start,
-                         week_end=week_end)
+                         week_end=week_end,
+                         today=today,
+                         meeting_form=meeting_form)
 
 @main.route('/meetings/add', methods=['GET', 'POST'])
 @login_required
@@ -273,7 +307,10 @@ def add_meeting():
             meeting_link=form.meeting_link.data,
             location=form.location.data,
             agenda=form.agenda.data,
-            created_by_id=current_user.id
+            created_by_id=current_user.id,
+            email_reminder=form.email_reminder.data,
+            sms_reminder=form.sms_reminder.data,
+            reminder_time=int(form.reminder_time.data) if form.reminder_time.data else None
         )
         
         if form.lead_id.data != 0:
@@ -323,6 +360,8 @@ def add_course():
     # Change this line to render a full page instead of modal
     return render_template('add_course.html', form=form, title='Add New Course')
 
+# Enhanced Student Routes
+
 @main.route('/students')
 @login_required
 def students():
@@ -352,7 +391,8 @@ def students():
     
     courses = Course.query.filter_by(is_active=True).all()
     statuses = ['Active', 'Completed', 'Dropped', 'Suspended']
-    
+    form = StudentForm()
+    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     return render_template('students.html',
                          students=students_pagination.items,
                          pagination=students_pagination,
@@ -360,34 +400,139 @@ def students():
                          statuses=statuses,
                          search=search,
                          course_filter=course_filter,
-                         status_filter=status_filter)
+                         status_filter=status_filter,
+                        form=form)
+
+@main.route('/student-management')
+@login_required  
+def student_management():
+    students = Student.query.order_by(desc(Student.enrollment_date)).all()
+    form = StudentForm()
+    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    return render_template('student_form.html', students=students, form=form)
+
+@main.route('/students/add', methods=['POST'])
+@login_required
+def add_student():
+    form = StudentForm()
+    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        import json
+        student = Student(
+            first_name=form.first_name.data,
+            last_name=form.last_name.data,
+            country_code=form.country_code.data,
+            phone=form.phone.data,
+            email=form.email.data,
+            course_id=form.course_id.data,
+            schedule_days=form.schedule_days.data,
+            schedule_time=form.schedule_time.data,
+            total_fee=form.total_fee.data,
+            fee_paid=form.fee_paid.data or 0.0,
+            payment_plan=form.payment_plan.data,
+            start_date=form.start_date.data,
+            end_date=form.end_date.data,
+            batch_name=form.batch_name.data
+        )
+        db.session.add(student)
+        db.session.commit()
+        flash('Student added successfully!', 'success')
+    
+    return redirect(url_for('main.student_management'))
+
+@main.route('/students/<int:id>')
+@login_required
+def view_student(id):
+    student = Student.query.get_or_404(id)
+    return render_template('student_detail.html', student=student)
+
+@main.route('/students/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_student(id):
+    student = Student.query.get_or_404(id)
+    form = StudentForm(obj=student)
+    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        form.populate_obj(student)
+        db.session.commit()
+        flash('Student updated successfully!', 'success')
+        return redirect(url_for('main.student_management'))
+    
+    return render_template('student_edit.html', form=form, student=student)
+
+@main.route('/students/<int:id>/payments')
+@login_required
+def student_payments(id):
+    student = Student.query.get_or_404(id)
+    return render_template('student_payments.html', student=student)
+
 
 @main.route('/corporate')
 @login_required
 def corporate():
+    form = CorporateTrainingForm()
+    form.course_names.choices = [(str(c.id), c.name) for c in Course.query.filter_by(is_active=True).all()]
     corporate_trainings = CorporateTraining.query.order_by(desc(CorporateTraining.created_at)).all()
-    return render_template('corporate.html', corporate_trainings=corporate_trainings)
+
+    # Preprocess corporate trainings to include course names
+    corporate_trainings_data = []
+    for training in corporate_trainings:
+        course_names = []
+        if training.course_names:  # Check if course_names is not None
+            try:
+                course_ids = json.loads(training.course_names)
+                courses = Course.query.filter(Course.id.in_(course_ids)).all()
+                course_names = [course.name for course in courses]
+            except json.JSONDecodeError:
+                course_names = ["Invalid course data"]
+        training_data = {
+            'id': training.id,
+            'company_name': training.company_name,
+            'contact_person': training.contact_person_name,  # Changed to match model field
+            'contact_email': training.contact_person_email,
+            'contact_phone': training.contact_person_phone,
+            'industry': training.industry,
+            'company_size': training.company_size,
+            'course_names': course_names,  # List of course names
+            'trainee_count': training.trainee_count,
+            'training_mode': training.training_mode,
+            'deal_value': training.deal_value,
+            'status': training.status,
+            'created_at': training.created_at,
+            'budget_range': training.budget_range,
+            'special_requirements': training.special_requirements
+        }
+        corporate_trainings_data.append(training_data)
+
+    return render_template('corporate.html', corporate_trainings=corporate_trainings_data, form=form)
 
 @main.route('/corporate/add', methods=['GET', 'POST'])
 @login_required
 def add_corporate():
     form = CorporateTrainingForm()
-    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    form.course_names.choices = [(str(c.id), c.name) for c in Course.query.filter_by(is_active=True).all()]
     
     if form.validate_on_submit():
+        import json
         corporate = CorporateTraining(
             company_name=form.company_name.data,
-            contact_person=form.contact_person.data,
-            contact_email=form.contact_email.data,
-            contact_phone=form.contact_phone.data,
+            location=form.location.data,
+            contact_person_name=form.contact_person_name.data,
+            contact_person_email=form.contact_person_email.data,
+            contact_person_country_code=form.contact_person_country_code.data,
+            contact_person_phone=form.contact_person_phone.data,
             industry=form.industry.data,
             company_size=form.company_size.data,
-            course_id=form.course_id.data,
+            course_names=json.dumps(form.course_names.data) if form.course_names.data else None,
             trainee_count=form.trainee_count.data,
             training_mode=form.training_mode.data,
+            quotation_amount=form.quotation_amount.data or 0.0,
+            expected_start_date=form.expected_start_date.data,
             budget_range=form.budget_range.data,
             special_requirements=form.special_requirements.data,
-            deal_value=form.deal_value.data or 0.0
+            created_by_id=current_user.id
         )
         
         db.session.add(corporate)
@@ -395,13 +540,71 @@ def add_corporate():
         flash('Corporate training inquiry added successfully!', 'success')
         return redirect(url_for('main.corporate'))
     
-    return render_template('corporate.html', form=form)
+    return render_template('corporate.html', form=form, corporate_trainings=CorporateTraining.query.order_by(desc(CorporateTraining.created_at)).all())
 
 @main.route('/messages')
 @login_required
 def messages():
     templates = MessageTemplate.query.order_by(MessageTemplate.name).all()
-    return render_template('messages.html', templates=templates)
+    template_form = MessageTemplateForm()
+    leads = Lead.query.all()
+    courses = Course.query.filter_by(is_active=True).all()
+    return render_template('messages.html', templates=templates, template_form=template_form, leads=leads, courses=courses)
+
+# Message Template Routes
+@main.route('/messages/add', methods=['POST'])
+@login_required
+def add_template():
+    form = MessageTemplateForm()
+    if form.validate_on_submit():
+        template = MessageTemplate(
+            name=form.name.data,
+            category=form.category.data,
+            subject=form.subject.data,
+            content=form.content.data,
+            message_type=form.message_type.data,
+            is_active=form.is_active.data
+        )
+        db.session.add(template)
+        db.session.commit()
+        flash('Message template added successfully!', 'success')
+    return redirect(url_for('main.messages'))
+
+@main.route('/messages/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_template(id):
+    template = MessageTemplate.query.get_or_404(id)
+    form = MessageTemplateForm(obj=template)
+    if form.validate_on_submit():
+        form.populate_obj(template)
+        db.session.commit()
+        flash('Template updated successfully!', 'success')
+        return redirect(url_for('main.messages'))
+    return render_template('messages.html', template_form=form, template=template)
+
+@main.route('/messages/<int:id>/delete')
+@login_required
+def delete_template(id):
+    template = MessageTemplate.query.get_or_404(id)
+    db.session.delete(template)
+    db.session.commit()
+    flash('Template deleted successfully!', 'success')
+    return redirect(url_for('main.messages'))
+
+@main.route('/messages/send', methods=['POST'])
+@login_required
+def send_message():
+    template_id = request.form.get('template_id')
+    lead_ids = request.form.getlist('lead_ids')
+    course_id = request.form.get('course_id')
+    
+    template = MessageTemplate.query.get_or_404(template_id)
+    template.usage_count += 1
+    db.session.commit()
+    
+    # Here you would implement actual message sending logic
+    flash(f'Message sent to {len(lead_ids)} recipients!', 'success')
+    return redirect(url_for('main.messages'))
 
 @main.route('/reports')
 @login_required
@@ -448,10 +651,42 @@ def reports():
                          date_from=date_from,
                          date_to=date_to)
 
-@main.route('/settings')
+# Settings Routes - Replace the existing one
+@main.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    return render_template('settings.html')
+    form = SettingsForm()
+    
+    # Load current settings
+    settings_dict = {}
+    for setting in SystemSettings.query.all():
+        settings_dict[setting.setting_key] = setting.setting_value
+    
+    if form.validate_on_submit():
+        # Update or create settings
+        for field in form:
+            if field.name != 'csrf_token' and field.data:
+                setting = SystemSettings.query.filter_by(setting_key=field.name).first()
+                if setting:
+                    setting.setting_value = str(field.data)
+                else:
+                    setting = SystemSettings(
+                        setting_key=field.name,
+                        setting_value=str(field.data),
+                        setting_type='string'
+                    )
+                    db.session.add(setting)
+        
+        db.session.commit()
+        flash('Settings updated successfully!', 'success')
+        return redirect(url_for('main.settings'))
+    
+    # Pre-populate form with current settings
+    for field in form:
+        if field.name in settings_dict:
+            field.data = settings_dict[field.name]
+    
+    return render_template('settings.html', form=form)
 
 # API endpoints for AJAX operations
 @main.route('/api/leads/<int:id>/status', methods=['POST'])
@@ -484,3 +719,91 @@ def pipeline_api_data():
         }
     
     return jsonify(result)
+
+# Corporate Training Routes  
+@main.route('/corporate-leads')
+@login_required
+def corporate_leads():
+    leads = CorporateTraining.query.order_by(desc(CorporateTraining.created_at)).all()
+    form = CorporateTrainingForm()
+    form.course_names.choices = [(str(c.id), c.name) for c in Course.query.filter_by(is_active=True).all()]
+    return render_template('corporate_leads.html', corporate_leads=leads, form=form)
+
+@main.route('/corporate-leads/add', methods=['POST'])
+@login_required
+def add_corporate_lead():
+    form = CorporateTrainingForm()
+    form.course_names.choices = [(str(c.id), c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        import json
+        lead = CorporateTraining(
+            company_name=form.company_name.data,
+            location=form.location.data,
+            contact_person_name=form.contact_person_name.data,
+            contact_person_email=form.contact_person_email.data,
+            contact_person_country_code=form.contact_person_country_code.data,
+            contact_person_phone=form.contact_person_phone.data,
+            industry=form.industry.data,
+            company_size=form.company_size.data,
+            course_names=json.dumps([form.course_names.data]) if form.course_names.data else None,
+            trainee_count=form.trainee_count.data,
+            training_mode=form.training_mode.data,
+            quotation_amount=form.quotation_amount.data or 0.0,
+            expected_start_date=form.expected_start_date.data,
+            budget_range=form.budget_range.data,
+            special_requirements=form.special_requirements.data,
+            created_by_id=current_user.id
+        )
+        db.session.add(lead)
+        db.session.commit()
+        flash('Corporate lead added successfully!', 'success')
+    
+    return redirect(url_for('main.corporate_leads'))
+
+@main.route('/corporate-leads/<int:id>')
+@login_required
+def view_corporate_lead(id):
+    lead = CorporateTraining.query.get_or_404(id)
+    course_names_list = []
+    if lead.course_names:
+        try:
+            course_ids = json.loads(lead.course_names)
+            courses = Course.query.filter(Course.id.in_(course_ids)).all()
+            course_names_list = [course.name for course in courses]
+        except json.JSONDecodeError:
+            course_names_list = []
+    return render_template('corporate_lead_detail.html', lead=lead, course_names_list=course_names_list)
+
+@main.route('/corporate-leads/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_corporate_lead(id):
+    lead = CorporateTraining.query.get_or_404(id)
+    form = CorporateTrainingForm(obj=lead)
+    form.course_names.choices = [(str(c.id), c.name) for c in Course.query.filter_by(is_active=True).all()]
+
+    # Pre-populate course_names from JSON
+    if lead.course_names:
+        try:
+            form.course_names.data = json.loads(lead.course_names)
+        except json.JSONDecodeError:
+            form.course_names.data = []
+    
+    if form.validate_on_submit():
+        form.populate_obj(lead)
+        # Convert course_names to JSON string
+        lead.course_names = json.dumps(form.course_names.data) if form.course_names.data else None
+        db.session.commit()
+        flash('Corporate lead updated successfully!', 'success')
+        return redirect(url_for('main.corporate_leads'))
+    
+    return render_template('corporate_lead_edit.html', form=form, lead=lead)
+
+@main.route('/corporate-leads/<int:id>/delete')
+@login_required
+def delete_corporate_lead(id):
+    lead = CorporateTraining.query.get_or_404(id)
+    db.session.delete(lead)
+    db.session.commit()
+    flash('Corporate lead deleted successfully!', 'success')
+    return redirect(url_for('main.corporate_leads'))

@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Student Management</h4>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#studentModal">
+                        <i class="fas fa-plus"></i> Add Student
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Course</th>
+                                    <th>Schedule</th>
+                                    <th>Fee Status</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td><strong>{{ student.name }}</strong></td>
+                                    <td>{{ student.country_code }} {{ student.phone }}</td>
+                                    <td>{{ student.email or '-' }}</td>
+                                    <td>{{ student.course.name }}</td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ student.schedule_days or 'Not set' }}<br>
+                                            {{ student.schedule_time or 'Not set' }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if (student.fee_paid / student.total_fee * 100) >= 100 %}bg-success
+                                                {% elif (student.fee_paid / student.total_fee * 100) >= 50 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                style="width: {{ (student.fee_paid / student.total_fee * 100)|round }}%">
+                                                {{ "%.0f"|format(student.fee_paid / student.total_fee * 100) }}%
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">{{ student.fee_paid }}/{{ student.total_fee }} AED</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if student.status == 'Active' %}bg-success
+                                            {% elif student.status == 'Completed' %}bg-primary
+                                            {% elif student.status == 'Suspended' %}bg-warning
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ student.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.edit_student', id=student.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.student_payments', id=student.id) }}" class="btn btn-sm btn-success">
+                                            <i class="fas fa-credit-card"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Modal -->
+<div class="modal fade" id="studentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Student</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('main.add_student') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Personal Information -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Personal Information</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.first_name.label(class="form-label") }}
+                                {{ form.first_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.last_name.label(class="form-label") }}
+                                {{ form.last_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.country_code.label(class="form-label") }}
+                                {{ form.country_code(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                {{ form.phone.label(class="form-label") }}
+                                {{ form.phone(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course and Schedule -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Course & Schedule</h6>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.course_id.label(class="form-label") }}
+                                {{ form.course_id(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.batch_name.label(class="form-label") }}
+                                {{ form.batch_name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.schedule_days.label(class="form-label") }}
+                                {{ form.schedule_days(class="form-control", onchange="toggleScheduleOptions(this)") }}
+                                <div class="form-text">
+                                    Note: If weekends are selected, weekday options will be disabled
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.schedule_time.label(class="form-label") }}
+                                {{ form.schedule_time(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.start_date.label(class="form-label") }}
+                                {{ form.start_date(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.end_date.label(class="form-label") }}
+                                {{ form.end_date(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-1">Payment Information</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.total_fee.label(class="form-label") }}
+                                {{ form.total_fee(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.fee_paid.label(class="form-label") }}
+                                {{ form.fee_paid(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                {{ form.payment_plan.label(class="form-label") }}
+                                {{ form.payment_plan(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Student</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleScheduleOptions(selectElement) {
+    const timeSelect = document.querySelector('select[name="schedule_time"]');
+    const selectedValue = selectElement.value;
+    
+    if (selectedValue === 'weekends') {
+        // Disable weekday time options, keep only weekend appropriate times
+        Array.from(timeSelect.options).forEach(option => {
+            if (option.value.includes('09:00-11:00') || 
+                option.value.includes('11:00-13:00') || 
+                option.value.includes('14:00-16:00')) {
+                option.disabled = false;
+            } else {
+                option.disabled = false; // Keep all options for flexibility
+            }
+        });
+    } else if (selectedValue === 'weekdays') {
+        // Enable all time options for weekdays
+        Array.from(timeSelect.options).forEach(option => {
+            option.disabled = false;
+        });
+    }
+}
+</script>
+{% endblock %}

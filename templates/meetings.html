@@ -208,7 +208,7 @@
 // Meeting management JavaScript
 let currentView = 'month';
 let currentDate = new Date();
-let meetings = {{ meetings | tojsonfilter }};
+let meetings_data = {{ meetings_data | tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
     renderCalendar();
@@ -422,14 +422,14 @@ function renderDayView(grid, title) {
 }
 
 function getMeetingsForDate(date) {
-    return meetings.filter(meeting => {
+    return meetings_data.filter(meeting => {
         const meetingDate = new Date(meeting.meeting_date);
         return meetingDate.toDateString() === date.toDateString();
     });
 }
 
 function getMeetingsForTimeSlot(slotDate) {
-    return meetings.filter(meeting => {
+    return meetings_data.filter(meeting => {
         const meetingDate = new Date(meeting.meeting_date);
         return meetingDate.getTime() >= slotDate.getTime() && 
                meetingDate.getTime() < slotDate.getTime() + (60 * 60 * 1000); // 1 hour

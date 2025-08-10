@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Message Templates</h4>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#messageTemplateModal">
+                        <i class="fas fa-plus"></i> Add Template
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Usage Count</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for template in templates %}
+                                <tr>
+                                    <td>{{ template.name }}</td>
+                                    <td><span class="badge bg-info">{{ template.category }}</span></td>
+                                    <td><span class="badge bg-secondary">{{ template.message_type }}</span></td>
+                                    <td>
+                                        {% if template.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ template.usage_count }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" onclick="sendMessage({{ template.id }})">
+                                            <i class="fas fa-paper-plane"></i> Send
+                                        </button>
+                                        <a href="{{ url_for('main.edit_template', id=template.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.delete_template', id=template.id) }}" class="btn btn-sm btn-danger" 
+                                           onclick="return confirm('Are you sure?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Message Template Modal -->
+<div class="modal fade" id="messageTemplateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Message Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('main.add_template') }}">
+                    {{ template_form.hidden_tag() }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ template_form.name.label(class="form-label") }}
+                                {{ template_form.name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ template_form.category.label(class="form-label") }}
+                                {{ template_form.category(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ template_form.message_type.label(class="form-label") }}
+                                {{ template_form.message_type(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ template_form.subject.label(class="form-label") }}
+                                {{ template_form.subject(class="form-control") }}
+                                <div class="form-text">For Email messages only</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        {{ template_form.content.label(class="form-label") }}
+                        {{ template_form.content(class="form-control", rows="6") }}
+                        <div class="form-text">
+                            Use variables: {name}, {phone}, {email}, {course_name}, {company_name}
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        {{ template_form.is_active(class="form-check-input") }}
+                        {{ template_form.is_active.label(class="form-check-label") }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Template</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Message Modal -->
+<div class="modal fade" id="sendMessageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('main.send_message') }}">
+                    <input type="hidden" id="selectedTemplateId" name="template_id">
+                    <div class="mb-3">
+                        <label class="form-label">Select Recipients</label>
+                        <select class="form-control" name="lead_ids" multiple>
+                            {% for lead in leads %}
+                                <option value="{{ lead.id }}">{{ lead.name }} - {{ lead.phone }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Course (optional)</label>
+                        <select class="form-control" name="course_id">
+                            <option value="">Select Course</option>
+                            {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message Preview</label>
+                        <div id="messagePreview" class="border p-3 bg-light"></div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Send Messages</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendMessage(templateId) {
+    document.getElementById('selectedTemplateId').value = templateId;
+    $('#sendMessageModal').modal('show');
+}
+</script>
+{% endblock %}
