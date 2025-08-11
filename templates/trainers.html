@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Trainer Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Trainer Management</h1>
+        <div>
+            <a href="{{ url_for('main.weekly_schedule') }}" class="btn btn-outline-info me-2">
+                <i class="fas fa-calendar-week me-1"></i>Weekly Schedule
+            </a>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTrainerModal">
+                <i class="fas fa-plus me-2"></i>Add Trainer
+            </button>
+        </div>
+    </div>
+
+    <!-- Trainers Grid -->
+    <div class="row">
+        {% for trainer in trainers %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">{{ trainer.name }}</h6>
+                    {% if trainer.is_active %}
+                        <span class="badge bg-success">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <i class="fas fa-phone me-2 text-muted"></i>{{ trainer.phone }}
+                    </div>
+                    <div class="mb-2">
+                        <i class="fas fa-envelope me-2 text-muted"></i>{{ trainer.email }}
+                    </div>
+                    {% if trainer.specialization %}
+                    <div class="mb-3">
+                        <i class="fas fa-star me-2 text-muted"></i>{{ trainer.specialization }}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Courses -->
+                    <div class="mb-3">
+                        <label class="text-muted small">Courses</label>
+                        <div>
+                            {% for course in trainer.courses %}
+                                <span class="badge bg-info me-1 mb-1">{{ course.name }}</span>
+                            {% else %}
+                                <span class="text-muted">No courses assigned</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100" role="group">
+                        <a href="{{ url_for('main.trainer_schedule', id=trainer.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-calendar me-1"></i>Schedule
+                        </a>
+                        <button class="btn btn-outline-success btn-sm" onclick="editTrainer({{ trainer.id }})">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteTrainer({{ trainer.id }})">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-chalkboard-teacher fa-4x text-muted mb-3"></i>
+                <h4>No Trainers Found</h4>
+                <p class="text-muted">Start by adding your first trainer to manage classes and schedules.</p>
+                <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addTrainerModal">
+                    <i class="fas fa-plus me-2"></i>Add First Trainer
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add Trainer Modal -->
+<div class="modal fade" id="addTrainerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.add_trainer') }}">
+                {{ trainer_form.hidden_tag() }}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Trainer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ trainer_form.name.label(class="form-label") }}
+                                {{ trainer_form.name(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ trainer_form.phone.label(class="form-label") }}
+                                {{ trainer_form.phone(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ trainer_form.email.label(class="form-label") }}
+                                {{ trainer_form.email(class="form-control") }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ trainer_form.specialization.label(class="form-label") }}
+                                {{ trainer_form.specialization(class="form-control") }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ trainer_form.course_ids.label(class="form-label") }}
+                        {{ trainer_form.course_ids(class="form-select", multiple=True, size="5") }}
+                        <div class="form-text">Hold Ctrl (Cmd on Mac) to select multiple courses</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ trainer_form.is_active(class="form-check-input") }}
+                            {{ trainer_form.is_active.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Trainer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editTrainer(trainerId) {
+    // Implement trainer editing functionality
+    alert('Edit trainer functionality will be implemented. Trainer ID: ' + trainerId);
+}
+
+function deleteTrainer(trainerId) {
+    if (confirm('Are you sure you want to delete this trainer? This action cannot be undone.')) {
+        window.location.href = `/trainers/${trainerId}/delete`;
+    }
+}
+</script>
+{% endblock %}

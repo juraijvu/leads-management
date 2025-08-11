@@ -56,11 +56,11 @@
             </div>
         </div>
         
-        <div class="col-md-2 text-end">
+       <!-- <div class="col-md-2 text-end">
             <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#leadModal">
                 <i class="fas fa-plus me-2"></i>Add Lead
             </button>
-        </div>
+        </div>-->
     </div>
 </div>
 
@@ -99,7 +99,7 @@
                                 {{ lead.name[0].upper() }}
                             </div>
                             <div>
-                                <div class="fw-bold">{{ lead.name }}</div>
+                                <div class="fw-bold"><a href="{{ url_for('main.lead_detail_full', id=lead.id) }}">{{ lead.name }}</a></div>
                                 <small class="text-muted">
                                     Created {{ lead.created_at.strftime('%b %d, %Y') }}
                                 </small>
@@ -172,14 +172,18 @@
                                     onclick="editLead({{ lead.id }})">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            {% if lead.status != 'Converted' and lead.course_interest %}
+                <!--            {% if lead.status != 'Converted' and lead.course_interest %}
                             <form method="POST" action="{{ url_for('main.convert_lead', id=lead.id) }}" 
                                   style="display: inline;" onsubmit="return confirm('Convert this lead to student?')">
                                 <button type="submit" class="btn btn-sm btn-outline-success" title="Convert to Student">
                                     <i class="fas fa-user-graduate"></i>
                                 </button>
                             </form>
-                            {% endif %}
+                            {% endif %} -->
+                            <button class="btn btn-sm btn-outline-danger" title="Delete" 
+                                    onclick="deleteLead({{ lead.id }})">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -269,7 +273,6 @@
 // Lead management JavaScript
 let selectedLeads = [];
 
-// Search functionality
 document.getElementById('searchInput').addEventListener('input', function() {
     const query = this.value.toLowerCase();
     const rows = document.querySelectorAll('.data-table tbody tr');
@@ -298,13 +301,11 @@ function updateSearchResults(query, count) {
     }
 }
 
-// Filter functionality
 function applyFilters() {
     const statusFilter = document.querySelector('select[name="status"]').value;
     const courseFilter = document.querySelector('select[name="course"]').value;
     const sourceFilter = document.querySelector('select[name="source"]').value;
     
-    // Update URL with filters
     const params = new URLSearchParams(window.location.search);
     if (statusFilter) params.set('status', statusFilter);
     else params.delete('status');
@@ -318,7 +319,6 @@ function applyFilters() {
     window.location.search = params.toString();
 }
 
-// Select all functionality
 document.getElementById('selectAll').addEventListener('change', function() {
     const checkboxes = document.querySelectorAll('.lead-select');
     checkboxes.forEach(checkbox => {
@@ -327,7 +327,6 @@ document.getElementById('selectAll').addEventListener('change', function() {
     updateSelectedLeads();
 });
 
-// Individual checkbox functionality
 document.querySelectorAll('.lead-select').forEach(checkbox => {
     checkbox.addEventListener('change', updateSelectedLeads);
 });
@@ -336,14 +335,12 @@ function updateSelectedLeads() {
     selectedLeads = Array.from(document.querySelectorAll('.lead-select:checked')).map(cb => cb.value);
     document.getElementById('selectedCount').textContent = selectedLeads.length;
     
-    // Enable/disable bulk action buttons
     const bulkButtons = document.querySelectorAll('#bulkStatusBtn, #bulkDeleteBtn');
     bulkButtons.forEach(btn => {
         btn.disabled = selectedLeads.length === 0;
     });
 }
 
-// Action functions
 function makeCall(phone) {
     if (confirm(`Call ${phone}?`)) {
         window.open(`tel:${phone}`);
@@ -362,8 +359,13 @@ function sendEmail(email) {
 }
 
 function editLead(leadId) {
-    // Redirect to edit form
     window.location.href = `/leads/${leadId}/edit`;
+}
+
+function deleteLead(leadId) {
+    if (confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
+        window.location.href = `/leads/${leadId}/delete`;
+    }
 }
 
 function bulkAction(action, value = null) {
@@ -380,16 +382,13 @@ function bulkAction(action, value = null) {
     }
     
     if (confirm(confirmMessage)) {
-        // Show loading
         showLoading();
         
-        // Simulate bulk action
         setTimeout(() => {
             hideLoading();
             showNotification(`Bulk action completed successfully!`, 'success');
             
             if (action === 'delete') {
-                // Remove rows from table
                 selectedLeads.forEach(leadId => {
                     const checkbox = document.querySelector(`.lead-select[value="${leadId}"]`);
                     if (checkbox) {
@@ -397,7 +396,6 @@ function bulkAction(action, value = null) {
                     }
                 });
             } else if (action === 'status') {
-                // Update status badges
                 selectedLeads.forEach(leadId => {
                     const checkbox = document.querySelector(`.lead-select[value="${leadId}"]`);
                     if (checkbox) {
@@ -410,7 +408,6 @@ function bulkAction(action, value = null) {
                 });
             }
             
-            // Clear selection
             selectedLeads = [];
             document.getElementById('selectAll').checked = false;
             document.querySelectorAll('.lead-select').forEach(cb => cb.checked = false);

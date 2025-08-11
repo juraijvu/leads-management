@@ -1,15 +1,19 @@
 """
 Utility functions for Training Center CRM
 """
+import json
 import os
 import re
 import uuid
 from datetime import datetime, date, timedelta
 from flask import current_app
+import logging
 from werkzeug.utils import secure_filename
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+logger = logging.getLogger(__name__)
 
 def generate_slug(text):
     """Generate a URL-friendly slug from text"""
@@ -340,3 +344,363 @@ class ValidationUtils:
         ]
         
         return all(re.search(pattern, password) for pattern in patterns)
+    
+# Payment Provider API Integration
+
+def create_vault_payment_link(amount, currency="AED", description="", customer_info=None, callback_url=None):
+    """
+    Create a payment link using Vault Pay API
+    Documentation: https://docs.vaultpay.com/api/payment-links
+    """
+    try:
+        if not requests:
+            return {"success": False, "error": "Requests library not available"}
+        # Vault Pay API endpoint
+        api_url = "https://api.vaultpay.com/v1/payment-links"
+        
+        # API credentials (should be stored in environment variables)
+        api_key = current_app.config.get('VAULT_API_KEY')
+        if not api_key:
+            logger.error("Vault API key not configured")
+            return {"success": False, "error": "API key not configured"}
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Payment link data
+        payment_data = {
+            "amount": float(amount),
+            "currency": currency,
+            "description": description,
+            "expires_at": (datetime.now() + timedelta(days=30)).isoformat(),
+            "metadata": {
+                "source": "training_center_crm",
+                "created_at": datetime.now().isoformat()
+            }
+        }
+        
+        # Add customer information if provided
+        if customer_info:
+            payment_data["customer"] = {
+                "name": customer_info.get("name", ""),
+                "email": customer_info.get("email", ""),
+                "phone": customer_info.get("phone", "")
+            }
+        
+        # Add callback URL if provided
+        if callback_url:
+            payment_data["callback_url"] = callback_url
+        
+        # Make API request
+        response = requests.post(api_url, headers=headers, json=payment_data, timeout=30)
+        
+        if response.status_code == 200 or response.status_code == 201:
+            result = response.json()
+            return {
+                "success": True,
+                "payment_link": result.get("url"),
+                "payment_id": result.get("id"),
+                "expires_at": result.get("expires_at")
+            }
+        else:
+            logger.error(f"Vault API error: {response.status_code} - {response.text}")
+            return {"success": False, "error": f"API Error: {response.status_code}"}
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Vault API connection error: {str(e)}")
+        return {"success": False, "error": "Connection error"}
+    except Exception as e:
+        logger.error(f"Vault payment link creation error: {str(e)}")
+        return {"success": False, "error": "Payment link creation failed"}
+
+def create_tabby_payment_link(amount, currency="AED", description="", customer_info=None, callback_url=None):
+    """
+    Create a payment link using Tabby API
+    Documentation: https://docs.tabby.ai/docs/checkout-api
+    """
+    try:
+        if not requests:
+            return {"success": False, "error": "Requests library not available"}
+        # Tabby API endpoint
+        api_url = "https://api.tabby.ai/api/v2/checkout"
+        
+        # API credentials
+        api_key = current_app.config.get('TABBY_API_KEY')
+        if not api_key:
+            logger.error("Tabby API key not configured")
+            return {"success": False, "error": "API key not configured"}
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Payment data for Tabby
+        checkout_data = {
+            "payment": {
+                "amount": str(amount),
+                "currency": currency,
+                "description": description
+            },
+            "order": {
+                "tax_amount": "0.00",
+                "shipping_amount": "0.00",
+                "discount_amount": "0.00",
+                "reference_id": f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "items": [{
+                    "title": description or "Training Course",
+                    "description": description or "Training course payment",
+                    "quantity": 1,
+                    "unit_price": str(amount),
+                    "category": "Education"
+                }]
+            },
+            "order_history": [],
+            "meta": {
+                "order_id": f"order_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                "customer": {}
+            }
+        }
+        
+        # Add customer information
+        if customer_info:
+            checkout_data["order"]["shipping_address"] = {
+                "city": "Dubai",
+                "country": "AE",
+                "line1": "Training Center",
+                "zip": "00000"
+            }
+            checkout_data["order"]["buyer"] = {
+                "phone": customer_info.get("phone", ""),
+                "email": customer_info.get("email", ""),
+                "name": customer_info.get("name", "")
+            }
+        
+        # Add callback URLs
+        if callback_url:
+            checkout_data["merchant_urls"] = {
+                "success": f"{callback_url}?status=success",
+                "cancel": f"{callback_url}?status=cancel",
+                "failure": f"{callback_url}?status=failure"
+            }
+        
+        # Make API request
+        response = requests.post(api_url, headers=headers, json=checkout_data, timeout=30)
+        
+        if response.status_code == 200 or response.status_code == 201:
+            result = response.json()
+            return {
+                "success": True,
+                "payment_link": result.get("web_url"),
+                "payment_id": result.get("id"),
+                "expires_at": result.get("expires_at")
+            }
+        else:
+            logger.error(f"Tabby API error: {response.status_code} - {response.text}")
+            return {"success": False, "error": f"API Error: {response.status_code}"}
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Tabby API connection error: {str(e)}")
+        return {"success": False, "error": "Connection error"}
+    except Exception as e:
+        logger.error(f"Tabby payment link creation error: {str(e)}")
+        return {"success": False, "error": "Payment link creation failed"}
+
+def create_tamara_payment_link(amount, currency="AED", description="", customer_info=None, callback_url=None):
+    """
+    Create a payment link using Tamara API
+    Documentation: https://docs.tamara.co/docs/api-checkout
+    """
+    try:
+        if not requests:
+            return {"success": False, "error": "Requests library not available"}
+        # Tamara API endpoint
+        api_url = "https://api.tamara.co/checkout"
+        
+        # API credentials
+        api_token = current_app.config.get('TAMARA_API_TOKEN')
+        if not api_token:
+            logger.error("Tamara API token not configured")
+            return {"success": False, "error": "API token not configured"}
+        
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # Payment data for Tamara
+        checkout_data = {
+            "order_reference_id": f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "order_number": f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "total_amount": {
+                "amount": float(amount),
+                "currency": currency
+            },
+            "description": description or "Training course payment",
+            "country_code": "AE",
+            "payment_type": "PAY_BY_INSTALMENTS",
+            "instalments": 3,
+            "locale": "en_US",
+            "items": [{
+                "name": description or "Training Course",
+                "type": "Digital",
+                "reference_id": f"item_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "sku": "TRAINING_001",
+                "quantity": 1,
+                "unit_price": {
+                    "amount": float(amount),
+                    "currency": currency
+                },
+                "total_amount": {
+                    "amount": float(amount),
+                    "currency": currency
+                }
+            }],
+            "consumer": {
+                "first_name": "Customer",
+                "last_name": "Name",
+                "phone_number": "971500000000",
+                "email": "customer@example.com"
+            },
+            "shipping_address": {
+                "first_name": "Customer",
+                "last_name": "Name",
+                "line1": "Training Center",
+                "city": "Dubai",
+                "country_code": "AE"
+            },
+            "billing_address": {
+                "first_name": "Customer", 
+                "last_name": "Name",
+                "line1": "Training Center",
+                "city": "Dubai",
+                "country_code": "AE"
+            }
+        }
+        
+        # Update customer information if provided
+        if customer_info:
+            name_parts = customer_info.get("name", "Customer Name").split(" ", 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else "Name"
+            
+            consumer_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone_number": customer_info.get("phone", "971500000000"),
+                "email": customer_info.get("email", "customer@example.com")
+            }
+            
+            checkout_data["consumer"] = consumer_data
+            checkout_data["shipping_address"].update({
+                "first_name": first_name,
+                "last_name": last_name
+            })
+            checkout_data["billing_address"].update({
+                "first_name": first_name,
+                "last_name": last_name
+            })
+        
+        # Add callback URLs
+        if callback_url:
+            checkout_data["merchant_url"] = {
+                "success": f"{callback_url}?status=success",
+                "failure": f"{callback_url}?status=failure",
+                "cancel": f"{callback_url}?status=cancel"
+            }
+        
+        # Make API request
+        response = requests.post(api_url, headers=headers, json=checkout_data, timeout=30)
+        
+        if response.status_code == 200 or response.status_code == 201:
+            result = response.json()
+            return {
+                "success": True,
+                "payment_link": result.get("checkout_url"),
+                "payment_id": result.get("order_id"),
+                "expires_at": None  # Tamara doesn't provide expiry in response
+            }
+        else:
+            logger.error(f"Tamara API error: {response.status_code} - {response.text}")
+            return {"success": False, "error": f"API Error: {response.status_code}"}
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Tamara API connection error: {str(e)}")
+        return {"success": False, "error": "Connection error"}
+    except Exception as e:
+        logger.error(f"Tamara payment link creation error: {str(e)}")
+        return {"success": False, "error": "Payment link creation failed"}
+
+def create_payment_link(provider, amount, currency="AED", description="", customer_info=None, callback_url=None):
+    """
+    Create a payment link using the specified provider
+    
+    Args:
+        provider (str): Payment provider ('vault', 'tabby', 'tamara')
+        amount (float): Payment amount
+        currency (str): Currency code (default: 'AED')
+        description (str): Payment description
+        customer_info (dict): Customer information (name, email, phone)
+        callback_url (str): Callback URL for payment notifications
+    
+    Returns:
+        dict: Payment link creation result
+    """
+    if provider.lower() == 'vault':
+        return create_vault_payment_link(amount, currency, description, customer_info, callback_url)
+    elif provider.lower() == 'tabby':
+        return create_tabby_payment_link(amount, currency, description, customer_info, callback_url)
+    elif provider.lower() == 'tamara':
+        return create_tamara_payment_link(amount, currency, description, customer_info, callback_url)
+    else:
+        return {"success": False, "error": f"Unsupported payment provider: {provider}"}
+
+def verify_payment_status(provider, payment_id):
+    """
+    Verify payment status with the provider
+    
+    Args:
+        provider (str): Payment provider ('vault', 'tabby', 'tamara')
+        payment_id (str): Payment ID to verify
+    
+    Returns:
+        dict: Payment status information
+    """
+    try:
+        if provider.lower() == 'vault':
+            api_key = current_app.config.get('VAULT_API_KEY')
+            if not api_key:
+                return {"success": False, "error": "API key not configured"}
+            
+            headers = {"Authorization": f"Bearer {api_key}"}
+            response = requests.get(f"https://api.vaultpay.com/v1/payment-links/{payment_id}", headers=headers)
+            
+        elif provider.lower() == 'tabby':
+            api_key = current_app.config.get('TABBY_API_KEY')
+            if not api_key:
+                return {"success": False, "error": "API key not configured"}
+            
+            headers = {"Authorization": f"Bearer {api_key}"}
+            response = requests.get(f"https://api.tabby.ai/api/v2/checkout/{payment_id}", headers=headers)
+            
+        elif provider.lower() == 'tamara':
+            api_token = current_app.config.get('TAMARA_API_TOKEN')
+            if not api_token:
+                return {"success": False, "error": "API token not configured"}
+            
+            headers = {"Authorization": f"Bearer {api_token}"}
+            response = requests.get(f"https://api.tamara.co/orders/{payment_id}", headers=headers)
+        else:
+            return {"success": False, "error": f"Unsupported payment provider: {provider}"}
+        
+        if response.status_code == 200:
+            result = response.json()
+            return {"success": True, "status": result.get("status", "unknown"), "data": result}
+        else:
+            return {"success": False, "error": f"API Error: {response.status_code}"}
+            
+    except Exception as e:
+        logger.error(f"Payment verification error: {str(e)}")
+        return {"success": False, "error": "Payment verification failed"}

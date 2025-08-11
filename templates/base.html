@@ -19,6 +19,47 @@
     
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
+    <style>
+/* Sidebar Scrolling Fix */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent outer scrollbar */
+}
+
+/* Sidebar content wrapper - this will scroll */
+.sidebar > div:first-child {
+    flex: 1;
+    overflow-y: auto; /* Enable scrolling */
+    overflow-x: hidden;
+    padding-bottom: 1rem;
+}
+
+/* Custom scrollbar for sidebar */
+.sidebar > div:first-child::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar > div:first-child::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.sidebar > div:first-child::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.sidebar > div:first-child::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* User menu at bottom - fixed position */
+.sidebar .mt-auto {
+    flex-shrink: 0; /* Don't shrink */
+    margin-top: auto !important;
+}
+    </style>
 </head>
 <body>
     <!-- Sidebar Navigation -->
@@ -26,7 +67,7 @@
         <div class="p-3">
             <div class="d-flex align-items-center mb-4">
                 <i class="fas fa-graduation-cap fa-2x text-white me-3"></i>
-                <h4 class="text-white mb-0">Training CRM</h4>
+                <h4 class="text-white mb-0">Orbit CRM</h4>
             </div>
             
             <ul class="nav nav-pills flex-column">
@@ -38,6 +79,11 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.leads' %}active{% endif %}" href="{{ url_for('main.leads') }}">
                         <i class="fas fa-user-friends me-2"></i> Leads
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'main.leads_view' %}active{% endif %}" href="{{ url_for('main.leads_view') }}">
+                        <i class="fas fa-list me-2"></i> Leads View
                     </a>
                 </li>
                 <li class="nav-item">
@@ -63,6 +109,16 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.corporate' %}active{% endif %}" href="{{ url_for('main.corporate') }}">
                         <i class="fas fa-building me-2"></i> Corporate
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'main.payments' %}active{% endif %}" href="{{ url_for('main.payments') }}">
+                        <i class="fas fa-credit-card me-2"></i> Payments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'main.trainers' %}active{% endif %}" href="{{ url_for('main.trainers') }}">
+                        <i class="fas fa-chalkboard-teacher me-2"></i> Trainers
                     </a>
                 </li>
                 <li class="nav-item">

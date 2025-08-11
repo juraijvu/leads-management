@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, FloatField, DateField, IntegerField, BooleanField, PasswordField
+from wtforms import StringField, TextAreaField, SelectField, FloatField, DateField, IntegerField, BooleanField, PasswordField, HiddenField, TimeField, SelectMultipleField
 from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange
 from wtforms.widgets import TextArea
 from models import Course, User
@@ -226,4 +226,141 @@ class SettingsForm(FlaskForm):
         ('+968', '+968 (Oman)')
     ], default='+971')
 
+
+# Payment Forms
+class PaymentProviderForm(FlaskForm):
+    name = SelectField("Payment Provider", choices=[
+        ("Vault", "Vault Pay"),
+        ("Tabby", "Tabby"),
+        ("Tamara", "Tamara")
+    ], validators=[DataRequired()])
+    api_key = StringField("API Key", validators=[DataRequired(), Length(max=500)])
+    api_secret = StringField("API Secret/Private Key", validators=[DataRequired(), Length(max=500)])
+    environment = SelectField("Environment", choices=[
+        ("sandbox", "Sandbox/Testing"),
+        ("production", "Production/Live")
+    ], default="sandbox", validators=[DataRequired()])
+    webhook_url = StringField("Webhook URL", validators=[Optional(), Length(max=500)])
+    is_active = BooleanField("Active", default=True)
+
+class PaymentLinkForm(FlaskForm):
+    lead_id = SelectField("Lead", coerce=int, validators=[Optional()])
+    student_id = SelectField("Student", coerce=int, validators=[Optional()])
+    provider_id = SelectField("Payment Provider", coerce=int, validators=[DataRequired()])
+    amount = FloatField("Amount", validators=[DataRequired(), NumberRange(min=0.01)])
+    currency = SelectField("Currency", choices=[
+        ("AED", "AED"),
+        ("USD", "USD"),
+        ("EUR", "EUR"),
+        ("SAR", "SAR")
+    ], default="AED", validators=[DataRequired()])
+    description = StringField("Payment Description", validators=[DataRequired(), Length(max=500)])
+    expires_in_days = IntegerField("Expires in (days)", validators=[DataRequired(), NumberRange(min=1, max=365)], default=7)
+
+# Lead Detail and Interaction Forms
+class LeadQuoteForm(FlaskForm):
+    course_id = SelectField('Course', coerce=int, validators=[DataRequired()])
+    quoted_amount = FloatField('Quote Amount', validators=[DataRequired(), NumberRange(min=0)])
+    currency = SelectField('Currency', choices=[
+        ('AED', 'AED'),
+        ('USD', 'USD'),
+        ('EUR', 'EUR'),
+        ('SAR', 'SAR')
+    ], default='AED')
+    valid_until = DateField('Valid Until', validators=[DataRequired()])
+    quote_notes = TextAreaField('Quote Notes', validators=[Optional()])
+
+class LeadInteractionForm(FlaskForm):
+    interaction_type = SelectField('Type', choices=[
+        ('Call', 'Phone Call'),
+        ('Email', 'Email'),
+        ('WhatsApp', 'WhatsApp'),
+        ('Meeting', 'In-Person Meeting'),
+        ('SMS', 'SMS'),
+        ('Other', 'Other')
+    ], validators=[DataRequired()])
+    interaction_date = DateField('Date', validators=[DataRequired()])
+    notes = TextAreaField('Notes', validators=[DataRequired(), Length(min=10, max=1000)])
+    outcome = SelectField('Outcome', choices=[
+        ('Positive', 'Positive'),
+        ('Neutral', 'Neutral'),
+        ('Negative', 'Negative'),
+        ('No Response', 'No Response'),
+        ('Follow-up Needed', 'Follow-up Needed')
+    ])
+
+class LeadFollowupForm(FlaskForm):
+    followup_date = DateField('Follow-up Date', validators=[DataRequired()])
+    followup_type = SelectField('Follow-up Type', choices=[
+        ('Call', 'Phone Call'),
+        ('Email', 'Email'),
+        ('WhatsApp', 'WhatsApp'),
+        ('Meeting', 'Meeting'),
+        ('SMS', 'SMS')
+    ], validators=[DataRequired()])
+    priority = SelectField('Priority', choices=[
+        ('Low', 'Low'),
+        ('Medium', 'Medium'),
+        ('High', 'High'),
+        ('Urgent', 'Urgent')
+    ], default='Medium')
+    notes = TextAreaField('Notes')
+
+# Trainer Management Forms
+class TrainerForm(FlaskForm):
+    name = StringField('Trainer Name', validators=[DataRequired(), Length(max=100)])
+    phone = StringField('Phone Number', validators=[DataRequired(), Length(max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    specialization = StringField('Specialization', validators=[Optional(), Length(max=200)])
+    course_ids = SelectMultipleField('Courses', coerce=int, validators=[DataRequired()])
+    is_active = BooleanField('Active', default=True)
+    
+    def __init__(self, *args, **kwargs):
+        super(TrainerForm, self).__init__(*args, **kwargs)
+        from models import Course
+        self.course_ids.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+
+class ClassScheduleForm(FlaskForm):
+    trainer_id = SelectField('Trainer', coerce=int, validators=[DataRequired()])
+    course_id = SelectField('Course', coerce=int, validators=[DataRequired()])
+    class_date = DateField('Class Date', validators=[DataRequired()])
+    start_time = TimeField('Start Time', validators=[DataRequired()])
+    duration_minutes = SelectField('Duration', choices=[
+        (30, '30 minutes'),
+        (60, '1 hour'),
+        (90, '1.5 hours'),
+        (120, '2 hours'),
+        (150, '2.5 hours'),
+        (180, '3 hours')
+    ], coerce=int, default=60, validators=[DataRequired()])
+    student_ids = SelectMultipleField('Students', coerce=int, validators=[Optional()])
+    class_type = SelectField('Class Type', choices=[
+        ('Regular', 'Regular Class'),
+        ('Makeup', 'Makeup Class'),
+        ('Extra', 'Extra Session'),
+        ('Assessment', 'Assessment'),
+        ('Review', 'Review Session')
+    ], default='Regular')
+    location = StringField('Location/Room', validators=[Optional(), Length(max=100)])
+    online_link = StringField('Online Meeting Link', validators=[Optional(), Length(max=500)])
+    notes = TextAreaField('Notes', validators=[Optional()])
+
+class PaymentSettingsForm(FlaskForm):
+    company_name = StringField("Company Name", validators=[DataRequired(), Length(max=200)])
+    company_email = StringField("Company Email", validators=[DataRequired(), Email(), Length(max=120)])
+    company_phone = StringField("Company Phone", validators=[DataRequired(), Length(max=20)])
+    company_address = TextAreaField("Company Address", validators=[Optional()])
+    tax_registration_number = StringField("Tax Registration Number", validators=[Optional(), Length(max=50)])
+    payment_terms = TextAreaField("Payment Terms", validators=[Optional()])
+    invoice_notes = TextAreaField("Default Invoice Notes", validators=[Optional()])
+    default_currency = SelectField("Default Currency", choices=[
+        ("AED", "AED (UAE Dirham)"),
+        ("USD", "USD (US Dollar)"),
+        ("EUR", "EUR (Euro)"),
+        ("SAR", "SAR (Saudi Riyal)")
+    ], default="AED", validators=[DataRequired()])
+    auto_send_receipts = BooleanField("Auto Send Payment Receipts", default=True)
+    payment_reminder_enabled = BooleanField("Enable Payment Reminders", default=True)
+    payment_reminder_days = IntegerField("Send Reminder Before (days)", 
+                                       validators=[Optional(), NumberRange(min=1, max=30)], default=3)
 

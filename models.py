@@ -179,3 +179,142 @@ class SystemSettings(db.Model):
     setting_value = db.Column(db.Text)
     setting_type = db.Column(db.String(20))  # string, number, boolean, json
     description = db.Column(db.String(200))
+
+# Lead Quote Models
+
+class LeadQuote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    quoted_amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(3), default='AED')
+    valid_until = db.Column(db.Date, nullable=False)
+    quote_notes = db.Column(db.Text)
+    status = db.Column(db.String(20), default='Active')  # Active, Accepted, Rejected, Expired
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    lead = db.relationship('Lead', backref='quotes')
+    course = db.relationship('Course', backref='quotes')
+    created_by = db.relationship('User', backref='created_quotes')
+
+# Trainer Management Models  
+class Trainer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    email = db.Column(db.String(120), nullable=False, unique=True)
+    specialization = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    trainer_courses = db.relationship('TrainerCourse', backref='trainer', cascade='all, delete-orphan')
+    class_schedules = db.relationship('ClassSchedule', backref='trainer')
+    
+    @property
+    def courses(self):
+        return [tc.course for tc in self.trainer_courses]
+
+class TrainerCourse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainer.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    
+    # Relationships
+    course = db.relationship('Course', backref='trainer_courses')
+
+class ClassSchedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainer.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+    class_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    duration_minutes = db.Column(db.Integer, default=60)
+    class_type = db.Column(db.String(20), default='Regular')
+    location = db.Column(db.String(100))
+    online_link = db.Column(db.String(500))
+    notes = db.Column(db.Text)
+    is_cancelled = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    course = db.relationship('Course', backref='class_schedules')
+    class_students = db.relationship('ClassStudent', backref='class_schedule', cascade='all, delete-orphan')
+    
+    @property
+    def end_time(self):
+        from datetime import datetime, timedelta
+        start_datetime = datetime.combine(date.today(), self.start_time)
+        end_datetime = start_datetime + timedelta(minutes=self.duration_minutes)
+        return end_datetime.time()
+    
+    @property
+    def students(self):
+        return [cs.student for cs in self.class_students]
+
+class ClassStudent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    class_schedule_id = db.Column(db.Integer, db.ForeignKey('class_schedule.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    attendance_status = db.Column(db.String(20), default='Scheduled')  # Scheduled, Present, Absent, Late
+    
+    # Relationships
+    student = db.relationship('Student', backref='class_enrollments')
+
+# Payment Models
+class PaymentProvider(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)  # Vault, Tabby, Tamara
+    is_active = db.Column(db.Boolean, default=True)
+    api_key = db.Column(db.String(500))
+    api_secret = db.Column(db.String(500))
+    environment = db.Column(db.String(20), default='sandbox')  # sandbox, production
+    webhook_url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<PaymentProvider {self.name}>'
+
+class PaymentLink(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'))
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'))
+    provider_id = db.Column(db.Integer, db.ForeignKey('payment_provider.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    currency = db.Column(db.String(5), default='AED')
+    description = db.Column(db.String(500))
+    payment_url = db.Column(db.String(1000))
+    payment_reference = db.Column(db.String(200), unique=True)
+    status = db.Column(db.String(20), default='pending')  # pending, paid, failed, expired, cancelled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_at = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime)
+    webhook_data = db.Column(db.Text)  # JSON data from payment provider
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Relationships
+    lead = db.relationship('Lead', backref='payment_links')
+    student = db.relationship('Student', backref='payment_links')
+    provider = db.relationship('PaymentProvider', backref='payment_links')
+    created_by = db.relationship('User', backref='created_payment_links')
+    
+    def __repr__(self):
+        return f'<PaymentLink {self.payment_reference}>'
+
+class PaymentSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_name = db.Column(db.String(200), nullable=False)
+    company_email = db.Column(db.String(120), nullable=False)
+    company_phone = db.Column(db.String(20), nullable=False)
+    company_address = db.Column(db.Text)
+    tax_registration_number = db.Column(db.String(50))
+    payment_terms = db.Column(db.Text)
+    invoice_notes = db.Column(db.Text)
+    default_currency = db.Column(db.String(5), default='AED')
+    auto_send_receipts = db.Column(db.Boolean, default=True)
+    payment_reminder_enabled = db.Column(db.Boolean, default=True)
+    payment_reminder_days = db.Column(db.Integer, default=3)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
