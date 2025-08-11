@@ -145,12 +145,16 @@
                                     <button class="btn btn-outline-success" onclick="editLead({{ lead.id }})" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    {% if lead.status not in ['Converted', 'Lost'] %}
+                                   <!-- {% if lead.status not in ['Converted', 'Lost'] %}
                                         <button class="btn btn-outline-info" onclick="createPaymentLink({{ lead.id }})" title="Payment Link">
                                             <i class="fas fa-link"></i>
                                         </button>
-                                    {% endif %}
-                                    <div class="btn-group btn-group-sm" role="group">
+                                    {% endif %} -->
+                                    <button class="btn btn-outline-info" onclick="deleteLead({{ lead.id }})" title="delete">
+                                            <i class="fas fa-trash me-2"></i>
+                                        </button>
+                                        
+                                    <!--<div class="btn-group btn-group-sm" role="group">
                                         <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" title="More Actions">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
@@ -171,7 +175,7 @@
                                                 <i class="fas fa-trash me-2"></i>Delete
                                             </a></li>
                                         </ul>
-                                    </div>
+                                    </div>-->
                                 </div>
                             </td>
                         </tr>
