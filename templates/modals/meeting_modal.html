@@ -54,16 +54,22 @@
                                 <label for="meeting_type">Meeting Type *</label>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="form-floating mb-3">
                                 {{ meeting_form.meeting_date(class="form-control") }}
-                                <label for="meeting_date">Meeting Date *</label>
+                                <label for="meeting_date">Date *</label>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="form-floating mb-3">
-                                {{ meeting_form.duration(class="form-select") }}
-                                <label for="duration">Duration *</label>
+                                {{ meeting_form.meeting_time(class="form-control") }}
+                                <label for="meeting_time">Time *</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating mb-3">
+                                {{ meeting_form.duration(class="form-control") }}
+                                <label for="duration">Duration (min) *</label>
                             </div>
                         </div>
                     </div>

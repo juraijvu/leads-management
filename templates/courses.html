@@ -211,15 +211,15 @@
             <!-- Course Actions -->
             <div class="course-actions mt-3 pt-3 border-top">
                 <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-primary flex-fill" onclick="viewCourse({{ course.id }})">
-                        <i class="fas fa-eye me-1"></i>View
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning" onclick="editCourse({{ course.id }})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-info" onclick="viewStudents({{ course.id }})">
-                        <i class="fas fa-users"></i>
-                    </button>
+                    <button class="btn btn-sm btn-outline-primary view-course-btn" data-course-id="{{ course.id }}" title="View">
+    <i class="fas fa-eye"></i>
+</button>
+<button class="btn btn-sm btn-outline-warning edit-course-btn" data-course-id="{{ course.id }}" title="Edit">
+    <i class="fas fa-edit"></i>
+</button>
+<button class="btn btn-sm btn-outline-info view-students-btn" data-course-id="{{ course.id }}" title="Students">
+    <i class="fas fa-users"></i>
+</button>
                 </div>
             </div>
         </div>
@@ -347,6 +347,29 @@
 let currentCourseId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.view-course-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const courseId = this.dataset.courseId;
+            viewCourse(courseId);
+        });
+    });
+
+    // Edit Course
+    document.querySelectorAll('.edit-course-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const courseId = this.dataset.courseId;
+            editCourse(courseId);
+        });
+    });
+
+    // View Students
+    document.querySelectorAll('.view-students-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const courseId = this.dataset.courseId;
+            viewStudents(courseId);
+        });
+    });
+
     initializeCourseSearch();
     initializeCourseFilters();
 });
@@ -418,11 +441,13 @@ function changeView(view) {
     }
 }
 
-function viewCourse(courseId) {
+async function viewCourse(courseId) {
     currentCourseId = courseId;
-    
-    // Simulate loading course details
-    const courseData = getCourseData(courseId);
+    const courseData = await getCourseData(courseId);
+    if (!courseData) {
+        showNotification('Error loading course data.', 'error');
+        return;
+    }
     
     const content = `
         <div class="row">
@@ -434,7 +459,7 @@ function viewCourse(courseId) {
                             <i class="fas fa-book fa-lg"></i>
                         </div>
                         <div>
-                            <h4 class="mb-1">${courseData.name}</h4>
+                            <h4 class="mb-1">${courseData.name || 'N/A'}</h4>
                             <div>
                                 <span class="badge ${courseData.is_active ? 'bg-success' : 'bg-secondary'} me-2">
                                     ${courseData.is_active ? 'Active' : 'Inactive'}
@@ -454,7 +479,7 @@ function viewCourse(courseId) {
                     <div class="row mb-4">
                         <div class="col-md-3">
                             <div class="stat-card text-center">
-                                <div class="stat-number text-success">$${courseData.price.toLocaleString()}</div>
+                                <div class="stat-number text-success">$${courseData.price?.toLocaleString() || '0'}</div>
                                 <div class="stat-label">Course Price</div>
                             </div>
                         </div>
@@ -466,7 +491,7 @@ function viewCourse(courseId) {
                         </div>
                         <div class="col-md-3">
                             <div class="stat-card text-center">
-                                <div class="stat-number text-info">${courseData.students_count}</div>
+                                <div class="stat-number text-info">${courseData.students_count || 0}</div>
                                 <div class="stat-label">Enrolled</div>
                             </div>
                         </div>
@@ -478,11 +503,11 @@ function viewCourse(courseId) {
                         </div>
                     </div>
                     
-                    ${courseData.key_points ? `
+                    ${courseData.key_points && courseData.key_points.length > 0 ? `
                     <div class="mb-4">
                         <h6>Key Learning Points</h6>
                         <ul class="list-group list-group-flush">
-                            ${JSON.parse(courseData.key_points || '[]').map(point => 
+                            ${courseData.key_points.map(point => 
                                 `<li class="list-group-item"><i class="fas fa-check text-success me-2"></i>${point}</li>`
                             ).join('')}
                         </ul>
@@ -498,7 +523,7 @@ function viewCourse(courseId) {
                     <div class="mb-3">
                         <div class="d-flex justify-content-between small mb-1">
                             <span>Enrollment Progress</span>
-                            <span>${courseData.students_count}/${courseData.max_students || '∞'}</span>
+                            <span>${courseData.students_count || 0}/${courseData.max_students || '∞'}</span>
                         </div>
                         <div class="progress-custom">
                             <div class="progress-bar-custom" style="width: ${courseData.max_students ? (courseData.students_count / courseData.max_students * 100) : 0}%"></div>
@@ -508,7 +533,7 @@ function viewCourse(courseId) {
                     <div class="analytics-stats">
                         <div class="d-flex justify-content-between py-2 border-bottom">
                             <span>Total Revenue</span>
-                            <span class="fw-bold text-success">$${(courseData.price * courseData.students_count).toLocaleString()}</span>
+                            <span class="fw-bold text-success">$${(courseData.price * courseData.students_count).toLocaleString() || '0'}</span>
                         </div>
                         <div class="d-flex justify-content-between py-2 border-bottom">
                             <span>Leads Interested</span>
@@ -528,17 +553,30 @@ function viewCourse(courseId) {
     new bootstrap.Modal(document.getElementById('courseDetailModal')).show();
 }
 
-function getCourseData(courseId) {
-    // In a real application, this would fetch from the server
-    const courses = {{ courses | tojsonfilter }};
-    const course = courses.find(c => c.id === courseId);
-    
-    return {
-        ...course,
-        students_count: course.students?.length || 0,
-        interested_leads: Math.floor(Math.random() * 20) + 5,
-        conversion_rate: Math.floor(Math.random() * 30) + 10
-    };
+async function getCourseData(courseId) {
+    try {
+        console.log('Fetching courses for courseId:', courseId, 'Type:', typeof courseId);
+        const response = await fetch('/api/courses');
+        const courses = await response.json();
+        console.log('Courses received:', courses);
+        const course = courses.find(c => c.id == courseId); // Use == instead of ===
+        console.log('Found course:', course);
+        if (!course) {
+            console.error('Course not found for courseId:', courseId);
+            showNotification('Course not found.', 'error');
+            return null;
+        }
+        return {
+            ...course,
+            students_count: course.students?.length || 0,
+            interested_leads: Math.floor(Math.random() * 20) + 5,
+            conversion_rate: Math.floor(Math.random() * 30) + 10
+        };
+    } catch (error) {
+        console.error('Error fetching course data:', error);
+        showNotification('Error fetching course data.', 'error');
+        return null;
+    }
 }
 
 function editCourse(courseId) {

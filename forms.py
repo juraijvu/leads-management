@@ -40,6 +40,9 @@ class LeadForm(FlaskForm):
     ], validators=[Optional()])
     comments = TextAreaField('Comments', validators=[Optional()])
 
+class ActivityForm(FlaskForm):
+    comment = TextAreaField('Add Activity Comment', validators=[DataRequired()], render_kw={"placeholder": "What happened with this lead?", "rows": "3"})
+
 class CourseForm(FlaskForm):
     name = StringField('Course Name', validators=[DataRequired(), Length(max=200)])
     description = TextAreaField('Description', validators=[Optional()])
@@ -53,6 +56,14 @@ class CourseForm(FlaskForm):
     category = StringField('Category', validators=[Optional(), Length(max=100)])
     max_students = IntegerField('Max Students', validators=[Optional(), NumberRange(min=1)])
     is_active = BooleanField('Active')
+    key_points = TextAreaField('Key Points (JSON)', validators=[Optional()])
+    
+    def validate_key_points(self, field):
+        if field.data:
+            try:
+                json.loads(field.data)
+            except json.JSONDecodeError:
+                raise ValidationError('Key Points must be a valid JSON array (e.g., ["point1", "point2"]).')
 
 class MeetingForm(FlaskForm):
     lead_id = SelectField('Lead', coerce=int, validators=[Optional()])
@@ -63,6 +74,7 @@ class MeetingForm(FlaskForm):
         ('Offline', 'Offline')
     ], validators=[DataRequired()])
     meeting_date = DateField('Meeting Date', validators=[DataRequired()])
+    meeting_time = TimeField('Meeting Time', validators=[DataRequired()])
     duration = IntegerField('Duration (minutes)', validators=[DataRequired(), NumberRange(min=15, max=480)])
     meeting_link = StringField('Meeting Link', validators=[Optional(), Length(max=500)])
     location = StringField('Location', validators=[Optional(), Length(max=200)])
@@ -291,6 +303,7 @@ class LeadInteractionForm(FlaskForm):
 
 class LeadFollowupForm(FlaskForm):
     followup_date = DateField('Follow-up Date', validators=[DataRequired()])
+    followup_time = TimeField('Follow-up Time', validators=[DataRequired()])
     followup_type = SelectField('Follow-up Type', choices=[
         ('Call', 'Phone Call'),
         ('Email', 'Email'),
@@ -303,8 +316,8 @@ class LeadFollowupForm(FlaskForm):
         ('Medium', 'Medium'),
         ('High', 'High'),
         ('Urgent', 'Urgent')
-    ], default='Medium')
-    notes = TextAreaField('Notes')
+    ], default='Medium', validators=[DataRequired()])
+    notes = TextAreaField('Notes', validators=[Optional()])
 
 # Trainer Management Forms
 class TrainerForm(FlaskForm):

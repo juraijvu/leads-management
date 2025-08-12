@@ -26,7 +26,9 @@ class Lead(db.Model):
     quoted_amount = db.Column(db.Float, default=0.0)
     last_contact_date = db.Column(db.Date)
     next_followup_date = db.Column(db.Date)
+    followup_time = db.Column(db.Time)  # New field for time
     followup_type = db.Column(db.String(20))  # Call, Email, WhatsApp, Meeting
+    followup_priority = db.Column(db.String(20))  # Low, Medium, High, Urgent
     comments = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -35,6 +37,62 @@ class Lead(db.Model):
     course_interest = db.relationship('Course', backref='interested_leads')
     created_by = db.relationship('User', backref='created_leads')
     interactions = db.relationship('LeadInteraction', backref='lead', lazy='dynamic')
+    
+    @classmethod
+    def check_duplicate(cls, phone, email=None, exclude_id=None):
+        """Check if a lead with same phone or email already exists"""
+        query = cls.query
+        if exclude_id:
+            query = query.filter(cls.id != exclude_id)
+        
+        # Check for phone duplicates
+        phone_exists = query.filter(cls.phone == phone).first()
+        if phone_exists:
+            return phone_exists
+        
+        # Check for email duplicates if email provided
+        if email:
+            email_exists = query.filter(cls.email == email).first()
+            if email_exists:
+                return email_exists
+        
+        return None
+    
+    @classmethod
+    def get_user_pipeline_data(cls, user_id):
+        """Get pipeline statistics for a specific user"""
+        user_leads = cls.query.filter_by(created_by_id=user_id)
+        
+        pipeline_data = {}
+        statuses = ['New', 'Contacted', 'Interested', 'Quoted', 'Converted', 'Lost']
+        
+        for status in statuses:
+            count = user_leads.filter_by(status=status).count()
+            pipeline_data[status] = count
+        
+        return pipeline_data
+    
+    @classmethod
+    def get_user_leads(cls, user_id, status=None, search=None, course_filter=None):
+        """Get leads for a specific user with optional filters"""
+        query = cls.query.filter_by(created_by_id=user_id)
+        
+        if status:
+            query = query.filter_by(status=status)
+        
+        if search:
+            query = query.filter(
+                db.or_(
+                    cls.name.ilike(f'%{search}%'),
+                    cls.phone.ilike(f'%{search}%'),
+                    cls.email.ilike(f'%{search}%')
+                )
+            )
+        
+        if course_filter:
+            query = query.filter_by(course_interest_id=course_filter)
+        
+        return query
     
     def __repr__(self):
         return f'<Lead {self.name}>'
@@ -49,6 +107,8 @@ class LeadInteraction(db.Model):
     is_important = db.Column(db.Boolean, default=False)
     
     created_by = db.relationship('User', backref='interactions')
+
+
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)

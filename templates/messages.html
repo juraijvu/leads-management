@@ -128,11 +128,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form method="POST" action="{{ url_for('main.send_message') }}">
+                <form id="sendMessageForm" method="POST" action="{{ url_for('main.send_message') }}">
                     <input type="hidden" id="selectedTemplateId" name="template_id">
                     <div class="mb-3">
                         <label class="form-label">Select Recipients</label>
-                        <select class="form-control" name="lead_ids" multiple>
+                        <select class="form-control" name="lead_ids" id="leadIds" multiple>
                             {% for lead in leads %}
                                 <option value="{{ lead.id }}">{{ lead.name }} - {{ lead.phone }}</option>
                             {% endfor %}
@@ -140,7 +140,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Course (optional)</label>
-                        <select class="form-control" name="course_id">
+                        <select class="form-control" name="course_id" id="courseId">
                             <option value="">Select Course</option>
                             {% for course in courses %}
                                 <option value="{{ course.id }}">{{ course.name }}</option>
@@ -160,8 +160,117 @@
 
 <script>
 function sendMessage(templateId) {
+    // Set the template ID in the hidden input
     document.getElementById('selectedTemplateId').value = templateId;
+
+    // Fetch the template content via AJAX
+    fetch(`/api/templates/${templateId}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const previewDiv = document.getElementById('messagePreview');
+            let content = data.template.content;
+
+            // Replace template variables with sample or selected data
+            const selectedLead = document.getElementById('leadIds').selectedOptions[0];
+            const selectedCourse = document.getElementById('courseId').value;
+            const courseOptions = document.getElementById('courseId').options;
+
+            // Sample data for preview if no lead is selected
+            content = content.replace('{name}', selectedLead ? selectedLead.text.split(' - ')[0] : 'John Doe');
+            content = content.replace('{phone}', selectedLead ? selectedLead.text.split(' - ')[1] : '+1234567890');
+            content = content.replace('{email}', 'example@email.com');
+            content = content.replace('{company_name}', 'Example Corp');
+
+            // Replace course_name if a course is selected
+            if (selectedCourse) {
+                const courseName = Array.from(courseOptions).find(opt => opt.value === selectedCourse)?.text || 'Selected Course';
+                content = content.replace('{course_name}', courseName);
+            } else {
+                content = content.replace('{course_name}', 'No Course Selected');
+            }
+
+            // Display the preview (escape HTML to prevent XSS)
+            previewDiv.innerHTML = content.replace(/\n/g, '<br>');
+        } else {
+            document.getElementById('messagePreview').innerHTML = 'Error loading template preview.';
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching template:', error);
+        document.getElementById('messagePreview').innerHTML = 'Error loading template preview. Please try again.';
+    });
+
+    // Show the modal
     $('#sendMessageModal').modal('show');
 }
+
+// Update preview when lead or course selection changes
+document.addEventListener('DOMContentLoaded', function() {
+    const leadSelect = document.getElementById('leadIds');
+    const courseSelect = document.getElementById('courseId');
+    const templateIdInput = document.getElementById('selectedTemplateId');
+
+    function updatePreview() {
+        const templateId = templateIdInput.value;
+        if (!templateId) return;
+
+        fetch(`/api/templates/${templateId}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const previewDiv = document.getElementById('messagePreview');
+                let content = data.template.content;
+
+                // Replace template variables
+                const selectedLead = leadSelect.selectedOptions[0];
+                const selectedCourse = courseSelect.value;
+                const courseOptions = courseSelect.options;
+
+                content = content.replace('{name}', selectedLead ? selectedLead.text.split(' - ')[0] : 'John Doe');
+                content = content.replace('{phone}', selectedLead ? selectedLead.text.split(' - ')[1] : '+1234567890');
+                content = content.replace('{email}', 'example@email.com');
+                content = content.replace('{company_name}', 'Example Corp');
+
+                if (selectedCourse) {
+                    const courseName = Array.from(courseOptions).find(opt => opt.value === selectedCourse)?.text || 'Selected Course';
+                    content = content.replace('{course_name}', courseName);
+                } else {
+                    content = content.replace('{course_name}', 'No Course Selected');
+                }
+
+                previewDiv.innerHTML = content.replace(/\n/g, '<br>');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating preview:', error);
+            document.getElementById('messagePreview').innerHTML = 'Error updating template preview.';
+        });
+    }
+
+    // Update preview when lead or course selection changes
+    leadSelect.addEventListener('change', updatePreview);
+    courseSelect.addEventListener('change', updatePreview);
+});
 </script>
 {% endblock %}

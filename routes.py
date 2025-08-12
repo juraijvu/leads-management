@@ -9,6 +9,10 @@ from app import db
 from models import *
 from forms import *
 from utils import create_payment_link, verify_payment_status
+import logging  # Add logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 main = Blueprint('main', __name__)
 
@@ -22,18 +26,19 @@ def dashboard():
     meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
     meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
-    # Dashboard statistics
-    total_leads = Lead.query.count()
-    total_students = Student.query.count()
-    total_courses = Course.query.filter_by(is_active=True).count()
+    # Dashboard statistics - USER SPECIFIC
+    total_leads = Lead.query.filter_by(created_by_id=current_user.id).count()
+    total_students = Student.query.count()  # Students can be common
+    total_courses = Course.query.filter_by(is_active=True).count()  # Courses are common
     
-    # Recent leads
-    recent_leads = Lead.query.order_by(desc(Lead.created_at)).limit(5).all()
+    # Recent leads - USER SPECIFIC
+    recent_leads = Lead.query.filter_by(created_by_id=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
     
-    # Pipeline data
-    pipeline_data = db.session.query(
-        Lead.status, func.count(Lead.id)
-    ).group_by(Lead.status).all()
+    # Today's follow-ups - USER SPECIFIC
+    today_followups = Lead.query.filter_by(created_by_id=current_user.id).filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
+    
+    # Pipeline data - USER SPECIFIC
+    pipeline_data = Lead.get_user_pipeline_data(current_user.id)
     
     # Monthly revenue
     monthly_revenue = db.session.query(
@@ -47,11 +52,172 @@ def dashboard():
                          total_students=total_students,
                          total_courses=total_courses,
                          recent_leads=recent_leads,
+                         today_followups=today_followups,
                          pipeline_data=pipeline_data,
                          monthly_revenue=monthly_revenue,
                          lead_form=lead_form,
                          meeting_form=meeting_form,
-                         lead=None)  # Add lead=None
+                         lead=None)
+
+@main.route('/api/leads/<int:id>', methods=['GET'])
+@login_required
+def get_lead(id):
+    lead = Lead.query.get_or_404(id)
+    
+    # USER ACCESS CONTROL - Only allow viewing own leads
+    if lead.created_by_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'message': 'You can only view your own leads!'
+        }), 403
+    
+    return jsonify({
+        'success': True,
+        'lead': {
+            'id': lead.id,
+            'name': lead.name,
+            'phone': lead.phone,
+            'email': lead.email,
+            'whatsapp': lead.whatsapp,
+            'course_interest_id': lead.course_interest_id,
+            'status': lead.status,
+            'lead_source': lead.lead_source,
+            'comments': lead.comments
+        }
+    })
+
+@main.route('/leads/<int:lead_id>')
+@login_required
+def lead_detail(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    
+    # USER ACCESS CONTROL - Only allow viewing own leads
+    if lead.created_by_id != current_user.id:
+        flash('You can only view your own leads!', 'error')
+        return redirect(url_for('main.leads'))
+    
+    # Get all interactions for this lead
+    interactions = LeadInteraction.query.filter_by(lead_id=lead_id).order_by(desc(LeadInteraction.interaction_date)).all()
+    
+    # Get all meetings for this lead
+    meetings = Meeting.query.filter_by(lead_id=lead_id).order_by(desc(Meeting.meeting_date)).all()
+    
+    # Get all quotes for this lead
+    quotes = LeadQuote.query.filter_by(lead_id=lead_id).order_by(desc(LeadQuote.created_at)).all()
+    
+    # Combine all activities and sort by date
+    activities = []
+    
+    # Add interactions
+    for interaction in interactions:
+        activities.append({
+            'type': 'interaction' if interaction.interaction_type != 'Quote Update' else 'quote-update' if interaction.interaction_type != 'Follow-up Update' else 'follow-up-update',
+            'subtype': interaction.interaction_type,
+            'date': interaction.interaction_date,
+            'content': interaction.content,
+            'created_by': interaction.created_by.username if interaction.created_by else 'System',
+            'is_important': interaction.is_important,
+            'data': interaction
+        })
+    
+    # Add meetings
+    for meeting in meetings:
+        activities.append({
+            'type': 'meeting',
+            'subtype': meeting.status,
+            'date': meeting.meeting_date,
+            'content': f"{meeting.title} - {meeting.meeting_type}",
+            'created_by': meeting.created_by.username if meeting.created_by else 'System',
+            'is_important': False,
+            'data': meeting
+        })
+    
+    # Add quotes
+    for quote in quotes:
+        activities.append({
+            'type': 'quote',
+            'subtype': quote.status,
+            'date': quote.created_at,
+            'content': f"Quote for {quote.course.name} - {quote.currency} {quote.quoted_amount}",
+            'created_by': quote.created_by.username if quote.created_by else 'System',
+            'is_important': True,
+            'data': quote
+        })
+    
+    # Sort activities by date (newest first)
+    activities.sort(key=lambda x: x['date'], reverse=True)
+    
+    # Create forms
+    activity_form = ActivityForm()
+    followup_form = LeadFollowupForm(obj=lead)
+    
+    # Get courses for quote form
+    courses = Course.query.filter_by(is_active=True).all()
+    
+    return render_template('lead_detail_modern.html', 
+                         lead=lead, 
+                         activities=activities,
+                         quotes=quotes,
+                         meetings=meetings,
+                         courses=courses,
+                         activity_form=activity_form,
+                         followup_form=followup_form)
+
+@main.route('/leads/quote/<int:id>/update_amount', methods=['POST'])
+@login_required
+def update_quote_amount(id):
+    quote = LeadQuote.query.get_or_404(id)
+    
+    # Access control: Ensure the lead belongs to the current user
+    if quote.lead.created_by_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'message': 'You can only edit quotes for your own leads!'
+        }), 403
+
+    quoted_amount = request.form.get('quoted_amount', type=float)
+    if not quoted_amount or quoted_amount <= 0:
+        return jsonify({
+            'success': False,
+            'message': 'Invalid quote amount. Please enter a positive number.'
+        }), 400
+
+    try:
+        # Store old amount for logging
+        old_amount = quote.quoted_amount
+        
+        # Update quote amount
+        quote.quoted_amount = quoted_amount
+        
+        # Update lead's quoted_amount (if this is the latest quote)
+        latest_quote = LeadQuote.query.filter_by(lead_id=quote.lead_id).order_by(desc(LeadQuote.created_at)).first()
+        if latest_quote.id == quote.id:
+            quote.lead.quoted_amount = quoted_amount
+        
+        # Log the change as an interaction
+        interaction = LeadInteraction(
+            lead_id=quote.lead_id,
+            interaction_type='Quote Update',
+            interaction_date=datetime.now(),
+            content=f"Quote amount updated from {quote.currency} {old_amount} to {quote.currency} {quoted_amount}",
+            created_by_id=current_user.id,
+            is_important=True
+        )
+        
+        db.session.add(interaction)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Quote amount updated successfully!'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating quote amount: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error updating quote amount: {str(e)}'
+        }), 500
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
@@ -90,20 +256,8 @@ def leads():
     status_filter = request.args.get('status', '')
     course_filter = request.args.get('course', '')
     
-    query = Lead.query
-    
-    if search:
-        query = query.filter(
-            (Lead.name.contains(search)) |
-            (Lead.phone.contains(search)) |
-            (Lead.email.contains(search))
-        )
-    
-    if status_filter:
-        query = query.filter(Lead.status == status_filter)
-    
-    if course_filter:
-        query = query.filter(Lead.course_interest_id == course_filter)
+    # USER SPECIFIC LEADS ONLY
+    query = Lead.get_user_leads(current_user.id, status_filter, search, course_filter)
     
     leads_pagination = query.order_by(desc(Lead.created_at)).paginate(
         page=page, per_page=20, error_out=False
@@ -122,113 +276,86 @@ def leads():
                          course_filter=course_filter,
                          lead_form=lead_form,
                          meeting_form=meeting_form,
-                         lead=None)  # Add lead=None
-
-@main.route("/leads/view")
-@login_required
-def leads_view():
-    """Enhanced leads view page"""
-    page = request.args.get("page", 1, type=int)
-    per_page = 20
-    search = request.args.get("search", "")
-    status_filter = request.args.get("status", "")
-    course_filter = request.args.get("course", "", type=int)
-    
-    # Build query
-    query = Lead.query
-    
-    if search:
-        query = query.filter(
-            Lead.name.contains(search) |
-            Lead.phone.contains(search) |
-            Lead.email.contains(search)
-        )
-    
-    if status_filter:
-        query = query.filter(Lead.status == status_filter)
-    
-    if course_filter:
-        query = query.filter(Lead.course_interest_id == course_filter)
-    
-    # Paginate results
-    leads = query.order_by(desc(Lead.created_at)).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    # Get filter options
-    courses = Course.query.filter_by(is_active=True).all()
-    statuses = ["New", "Contacted", "Interested", "Quoted", "Converted", "Lost"]
-    
-    # Add today's date
-    today = date.today()
-    
-    return render_template("leads_view.html",
-                         leads=leads,
-                         courses=courses,
-                         statuses=statuses,
-                         search=search,
-                         status_filter=status_filter,
-                         course_filter=course_filter,
-                         today=today)
-
-@main.route('/leads/add', methods=['GET', 'POST'])
-@login_required
-def add_lead():
-    form = LeadForm()
-    
-    # Debug: Check if courses exist
-    all_courses = Course.query.all()
-    active_courses = Course.query.filter_by(is_active=True).all()
-    print(f"Total courses: {len(all_courses)}")
-    print(f"Active courses: {len(active_courses)}")
-    for course in active_courses:
-        print(f"Course: {course.id} - {course.name} - Active: {course.is_active}")
-    
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in active_courses]
-    
-    if form.validate_on_submit():
-        lead = Lead(
-            name=form.name.data,
-            phone=form.phone.data,
-            whatsapp=form.whatsapp.data,
-            email=form.email.data,
-            course_interest_id=form.course_interest_id.data if form.course_interest_id.data != 0 else None,
-            lead_source=form.lead_source.data,
-            status=form.status.data,
-            quoted_amount=form.quoted_amount.data or 0.0,
-            next_followup_date=form.next_followup_date.data,
-            followup_type=form.followup_type.data,
-            comments=form.comments.data,
-            created_by_id=current_user.id
-        )
-        db.session.add(lead)
-        db.session.commit()
-        flash('Lead added successfully!', 'success')
-        if request.form.get('save_and_add_another'):
-            return redirect(url_for('main.add_lead'))
-        return redirect(url_for('main.leads'))
-    
-    return render_template('modals/lead_modal.html', lead_form=form, title='Add New Lead')
+                         lead=None)
 
 @main.route('/leads/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_lead(id):
     if id == 0:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'errors': ['Invalid lead ID.']
+            }), 400
         flash('Invalid lead ID.', 'error')
         return redirect(url_for('main.leads'))
     
     lead = Lead.query.get_or_404(id)
+    
+    # USER ACCESS CONTROL - Only allow editing own leads
+    if lead.created_by_id != current_user.id:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': False,
+                'errors': ['You can only edit your own leads!']
+            }), 403
+        flash('You can only edit your own leads!', 'error')
+        return redirect(url_for('main.leads'))
+    
     form = LeadForm(obj=lead)
     form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     
     if form.validate_on_submit():
-        form.populate_obj(lead)
-        lead.course_interest_id = form.course_interest_id.data if form.course_interest_id.data != 0 else None
-        db.session.commit()
-        flash('Lead updated successfully!', 'success')
-        return redirect(url_for('main.leads'))
+        # DUPLICATE DETECTION - Check across all users but exclude current lead
+        existing_lead = Lead.check_duplicate(form.phone.data, form.email.data, exclude_id=lead.id)
+        if existing_lead:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'errors': [f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})']
+                }), 400
+            flash(f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})', 'warning')
+            return render_template('edit_lead.html', lead_form=form, lead=lead)
+        
+        try:
+            form.populate_obj(lead)
+            lead.course_interest_id = form.course_interest_id.data if form.course_interest_id.data != 0 else None
+            db.session.commit()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'message': 'Lead updated successfully!'
+                })
+            flash('Lead updated successfully!', 'success')
+            return redirect(url_for('main.lead_detail', lead_id=lead.id))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating lead: {str(e)}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'errors': ['An error occurred while updating the lead. Please try again.']
+                }), 500
+            flash('An error occurred while updating the lead. Please try again.', 'error')
+            return render_template('edit_lead.html', lead_form=form, lead=lead)
     
-    return render_template('modals/lead_modal.html', lead_form=form, title=f'Edit Lead: {lead.name}', lead=lead)
+    # Handle form validation errors for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'POST':
+        errors = []
+        for field, field_errors in form.errors.items():
+            for error in field_errors:
+                errors.append(f"{field}: {error}")
+        return jsonify({
+            'success': False,
+            'errors': errors or ['Invalid form data. Please check your inputs.']
+        }), 400
+    
+    # For GET requests, render the edit page as a fallback
+    meeting_form = MeetingForm()
+    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
+    
+    return render_template('edit_lead.html', lead_form=form, lead=lead)
 
 @main.route('/leads/<int:id>/convert', methods=['POST'])
 @login_required
@@ -311,7 +438,7 @@ def pipeline():
                          statuses=statuses,
                          lead_form=lead_form,
                          meeting_form=meeting_form,
-                         lead=None)  # Add lead=None
+                         lead=None)
 
 @main.route('/meetings')
 @login_required
@@ -365,7 +492,7 @@ def add_meeting():
         meeting = Meeting(
             title=form.title.data,
             meeting_type=form.meeting_type.data,
-            meeting_date=datetime.combine(form.meeting_date.data, datetime.min.time()),
+            meeting_date=datetime.combine(form.meeting_date.data, form.meeting_time.data),
             duration=form.duration.data,
             meeting_link=form.meeting_link.data,
             location=form.location.data,
@@ -386,13 +513,62 @@ def add_meeting():
         flash('Meeting scheduled successfully!', 'success')
         return redirect(url_for('main.meetings'))
     
-    return render_template('modals/meeting_modal.html', form=form, title='Schedule Meeting')
+    return render_template('modals/meeting_modal.html', meeting_form=form, title='Schedule Meeting')
 
 @main.route('/courses')
 @login_required
 def courses():
     courses = Course.query.order_by(Course.name).all()
+    for course in courses:
+        course.name = course.name.replace('&', '&amp;') if course.name else ''
+        course.description = course.description.replace('&', '&amp;') if course.description else ''
+        course.category = course.category.replace('&', '&amp;') if course.category else ''
+        if course.key_points:
+            try:
+                key_points = json.loads(course.key_points)
+                course.key_points = json.dumps([point.replace('&', '&amp;') for point in key_points])
+            except json.JSONDecodeError:
+                course.key_points = '[]'
     return render_template('courses.html', courses=courses)
+
+@main.route('/api/courses')
+@login_required
+def get_courses():
+    courses = Course.query.order_by(Course.name).all()
+    return jsonify([{
+        'id': c.id,
+        'name': c.name,
+        'description': c.description,
+        'price': c.price,
+        'duration': c.duration,
+        'category': c.category,
+        'is_active': c.is_active,
+        'students': [{'id': s.id, 'name': s.name} for s in c.students],
+        'max_students': c.max_students,
+        'key_points': json.loads(c.key_points) if c.key_points else []
+    } for c in courses])
+
+@main.route('/courses/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_course(id):
+    course = Course.query.get_or_404(id)
+    form = CourseForm(obj=course)
+    
+    if form.validate_on_submit():
+        form.populate_obj(course)
+        course.slug = form.name.data.lower().replace(' ', '-').replace('/', '-')
+        course.key_points = form.key_points.data if form.key_points.data else '[]'
+        
+        try:
+            db.session.commit()
+            flash('Course updated successfully!', 'success')
+            return redirect(url_for('main.courses'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating course: {str(e)}")
+            flash('An error occurred while updating the course. Please try again.', 'error')
+    
+    return render_template('edit_course.html', form=form, course=course)
 
 @main.route('/courses/add', methods=['GET', 'POST'])
 @login_required
@@ -401,6 +577,14 @@ def add_course():
     
     if form.validate_on_submit():
         slug = form.name.data.lower().replace(' ', '-').replace('/', '-')
+        
+        # Validate and sanitize key_points
+        key_points = form.key_points.data if form.key_points.data else '[]'
+        try:
+            json.loads(key_points)
+        except json.JSONDecodeError:
+            flash('Invalid key points format. Please provide a valid JSON array (e.g., ["point1", "point2"]).', 'error')
+            return render_template('add_course.html', form=form, title='Add New Course')
         
         course = Course(
             name=form.name.data,
@@ -411,13 +595,19 @@ def add_course():
             duration_type=form.duration_type.data,
             category=form.category.data,
             max_students=form.max_students.data or 20,
-            is_active=form.is_active.data
+            is_active=form.is_active.data,
+            key_points=key_points
         )
         
-        db.session.add(course)
-        db.session.commit()
-        flash('Course added successfully!', 'success')
-        return redirect(url_for('main.courses'))
+        try:
+            db.session.add(course)
+            db.session.commit()
+            flash('Course added successfully!', 'success')
+            return redirect(url_for('main.courses'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding course: {str(e)}")
+            flash('An error occurred while adding the course. Please try again.', 'error')
     
     return render_template('add_course.html', form=form, title='Add New Course')
 
@@ -428,26 +618,20 @@ def students():
     search = request.args.get('search', '')
     course_filter = request.args.get('course', '')
     status_filter = request.args.get('status', '')
-    
     query = Student.query
-    
     if search:
         query = query.filter(
             (Student.name.contains(search)) |
             (Student.phone.contains(search)) |
             (Student.email.contains(search))
         )
-    
     if course_filter:
         query = query.filter(Student.course_id == course_filter)
-    
     if status_filter:
         query = query.filter(Student.status == status_filter)
-    
     students_pagination = query.order_by(desc(Student.enrollment_date)).paginate(
         page=page, per_page=20, error_out=False
     )
-    
     courses = Course.query.filter_by(is_active=True).all()
     statuses = ['Active', 'Completed', 'Dropped', 'Suspended']
     form = StudentForm()
@@ -659,6 +843,23 @@ def send_message():
     flash(f'Message sent to {len(lead_ids)} recipients!', 'success')
     return redirect(url_for('main.messages'))
 
+@main.route('/api/templates/<int:id>', methods=['GET'])
+@login_required
+def get_template(id):
+    template = MessageTemplate.query.get_or_404(id)
+    return jsonify({
+        'success': True,
+        'template': {
+            'id': template.id,
+            'name': template.name,
+            'category': template.category,
+            'message_type': template.message_type,
+            'subject': template.subject,
+            'content': template.content,
+            'is_active': template.is_active
+        }
+    })
+
 @main.route('/reports')
 @login_required
 def reports():
@@ -840,33 +1041,74 @@ def lead_detail(id):
 @login_required
 def add_lead_quote(id):
     lead = Lead.query.get_or_404(id)
-    form = LeadQuoteForm()
-    form.course_id.choices = [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     
-    if form.validate_on_submit():
+    # Get form data directly from request since we're using a simple form
+    course_id = request.form.get('course_id', type=int)
+    quoted_amount = request.form.get('quoted_amount', type=float)
+    valid_until = request.form.get('valid_until')
+    quote_notes = request.form.get('quote_notes', '')
+    currency = request.form.get('currency', 'AED')
+    
+    if not course_id or not quoted_amount or not valid_until:
+        flash("Please fill all required fields", "error")
+        return redirect(url_for("main.lead_detail", lead_id=id))
+    
+    try:
+        # Parse the date
+        from datetime import datetime
+        valid_until_date = datetime.strptime(valid_until, '%Y-%m-%d').date()
+        
         quote = LeadQuote(
             lead_id=id,
-            course_id=form.course_id.data,
-            quoted_amount=form.quoted_amount.data,
-            currency=form.currency.data,
-            valid_until=form.valid_until.data,
-            quote_notes=form.quote_notes.data,
+            course_id=course_id,
+            quoted_amount=quoted_amount,
+            currency=currency,
+            valid_until=valid_until_date,
+            quote_notes=quote_notes,
             created_by_id=current_user.id
         )
         
+        # Update lead status and quoted amount
         if lead.status not in ["Converted", "Lost"]:
             lead.status = "Quoted"
-            lead.quoted_amount = form.quoted_amount.data
+            lead.quoted_amount = quoted_amount
         
         db.session.add(quote)
         db.session.commit()
         flash("Quote added successfully!", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error adding quote: {str(e)}", "error")
+    
+    return redirect(url_for("main.lead_detail", lead_id=id))
+
+@main.route("/leads/<int:lead_id>/add_activity", methods=["POST"])
+@login_required
+def add_lead_activity(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    form = ActivityForm()
+    
+    if form.validate_on_submit():
+        # Add new interaction as activity comment
+        interaction = LeadInteraction(
+            lead_id=lead_id,
+            interaction_type='Comment',
+            interaction_date=datetime.now(),
+            content=form.comment.data,
+            created_by_id=current_user.id,
+            is_important=False
+        )
+        
+        db.session.add(interaction)
+        db.session.commit()
+        flash("Activity comment added successfully!", "success")
     else:
         for field, errors in form.errors.items():
             for error in errors:
-                flash(f"{field}: {error}", "error")
+                flash(f"Error: {error}", "error")
     
-    return redirect(url_for("main.lead_detail", id=id))
+    return redirect(url_for("main.lead_detail", lead_id=lead_id))
 
 @main.route("/leads/<int:id>/add_interaction", methods=["POST"])
 @login_required
@@ -894,26 +1136,133 @@ def add_lead_interaction(id):
             for error in errors:
                 flash(f"{field}: {error}", "error")
     
-    return redirect(url_for("main.lead_detail", id=id))
+    return redirect(url_for("main.lead_detail", lead_id=id))
+
+@main.route('/leads/add', methods=['POST'])
+@login_required
+def add_lead():
+    form = LeadForm()
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        existing_lead = Lead.check_duplicate(form.phone.data, form.email.data)
+        if existing_lead:
+            return jsonify({
+                'success': False,
+                'errors': [f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})']
+            }), 400
+        
+        try:
+            lead = Lead(
+                name=form.name.data,
+                phone=form.phone.data,
+                email=form.email.data,
+                whatsapp=form.whatsapp.data,
+                course_interest_id=form.course_interest_id.data if form.course_interest_id.data != 0 else None,
+                lead_source=form.lead_source.data,
+                comments=form.comments.data,
+                created_by_id=current_user.id
+            )
+            db.session.add(lead)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Lead added successfully!'
+            })
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding lead: {str(e)}")
+            return jsonify({
+                'success': False,
+                'errors': ['An error occurred while adding the lead. Please try again.']
+            }), 500
+    
+    errors = []
+    for field, field_errors in form.errors.items():
+        for error in field_errors:
+            errors.append(f"{field}: {error}")
+    return jsonify({
+        'success': False,
+        'errors': errors or ['Invalid form data. Please check your inputs.']
+    }), 400
 
 @main.route("/leads/<int:id>/update_followup", methods=["POST"])
 @login_required
 def update_lead_followup(id):
     lead = Lead.query.get_or_404(id)
+    
+    # Access control: Ensure the lead belongs to the current user
+    if lead.created_by_id != current_user.id:
+        return jsonify({
+            'success': False,
+            'message': 'You can only edit your own leads!'
+        }), 403
+
     form = LeadFollowupForm()
     
     if form.validate_on_submit():
-        lead.next_followup_date = form.followup_date.data
-        lead.followup_type = form.followup_type.data
-        
-        db.session.commit()
-        flash("Follow-up updated successfully!", "success")
+        try:
+            # Store old values for logging
+            old_date = lead.next_followup_date
+            old_time = lead.followup_time
+            old_type = lead.followup_type
+            old_priority = lead.followup_priority
+
+            # Update lead with new values
+            lead.next_followup_date = form.followup_date.data
+            lead.followup_time = form.followup_time.data
+            lead.followup_type = form.followup_type.data
+            lead.followup_priority = form.priority.data
+
+            # Log the change as an interaction
+            content = f"Follow-up updated: "
+            changes = []
+            if old_date != form.followup_date.data:
+                changes.append(f"Date changed from {old_date or 'Not set'} to {form.followup_date.data}")
+            if old_time != form.followup_time.data:
+                changes.append(f"Time changed from {old_time or 'Not set'} to {form.followup_time.data}")
+            if old_type != form.followup_type.data:
+                changes.append(f"Type changed from {old_type or 'Not set'} to {form.followup_type.data}")
+            if old_priority != form.priority.data:
+                changes.append(f"Priority changed from {old_priority or 'Not set'} to {form.priority.data}")
+            if form.notes.data:
+                changes.append(f"Notes: {form.notes.data}")
+            
+            content += "; ".join(changes) if changes else "No changes made"
+
+            interaction = LeadInteraction(
+                lead_id=lead.id,
+                interaction_type='Follow-up Update',
+                interaction_date=datetime.now(),
+                content=content,
+                created_by_id=current_user.id,
+                is_important=True
+            )
+            
+            db.session.add(interaction)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Follow-up updated successfully!'
+            })
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating follow-up: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': f'Error updating follow-up: {str(e)}'
+            }), 500
     else:
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f"{field}: {error}", "error")
-    
-    return redirect(url_for("main.lead_detail", id=id))
+        errors = []
+        for field, field_errors in form.errors.items():
+            for error in field_errors:
+                errors.append(f"{field}: {error}")
+        return jsonify({
+            'success': False,
+            'message': 'Form validation failed',
+            'errors': errors
+        }), 400 
 
 @main.route('/corporate-leads/<int:id>/edit', methods=['GET', 'POST'])
 @login_required

@@ -100,8 +100,86 @@
         </div>
     </div>
     <div class="col-lg-6 mb-4">
-        <div class="chart-container">
-            <canvas id="courseChart" height="250"></canvas>
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Today's Follow-ups</h5>
+                <a href="{{ url_for('main.leads') }}" class="btn btn-sm btn-outline-primary">View All Leads</a>
+            </div>
+            
+            {% if today_followups %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Course Interest</th>
+                            <th>Follow-up Type</th>
+                            <th>Time</th>
+                            <th>Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in today_followups %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        {{ lead.name[0].upper() }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ lead.name }}</div>
+                                        <small class="text-muted">{{ lead.phone }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if lead.course_interest %}
+                                    {{ lead.course_interest.name }}
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ lead.followup_type or 'Not set' }}</td>
+                            <td>
+                                {% if lead.followup_time %}
+                                    {{ lead.followup_time.strftime('%I:%M %p') }}
+                                {% else %}
+                                    <span class="text-muted">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ lead.followup_priority.lower() if lead.followup_priority else 'not-set' }}">
+                                    {{ lead.followup_priority or 'Not set' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('main.lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-success" title="WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" title="Email">
+                                        <i class="fas fa-envelope"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No follow-ups scheduled for today</p>
+                <a href="{{ url_for('main.leads') }}" class="btn btn-primary-custom">
+                    <i class="fas fa-plus me-2"></i>Manage Leads
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -192,12 +270,16 @@
         <!-- Pipeline Summary -->
         <div class="dashboard-card mb-4">
             <h5 class="mb-3">Pipeline Summary</h5>
-            {% for status, count in pipeline_data %}
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="status-badge status-{{ status.lower() }}">{{ status }}</span>
-                <span class="fw-bold">{{ count }}</span>
-            </div>
-            {% endfor %}
+            {% if pipeline_data %}
+                {% for status, count in pipeline_data.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="status-badge status-{{ status.lower() }}">{{ status }}</span>
+                    <span class="fw-bold">{{ count }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No pipeline data available.</p>
+            {% endif %}
         </div>
         
         <!-- Quick Actions -->
@@ -222,7 +304,6 @@
 </div>
 
 <!-- Modals -->
-{% include 'modals/lead_modal.html' %}
 {% include 'modals/meeting_modal.html' %}
 {% include 'modals/course_modal.html' %}
 {% endblock %}

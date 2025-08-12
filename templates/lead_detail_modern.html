@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} - Lead Details{% endblock %}
+
+{% block extra_head %}
+<style>
+.client-details-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px 15px 0 0;
+    margin-bottom: 0;
+}
+
+.client-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-right: 1.5rem;
+}
+
+.client-info h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.client-info p {
+    margin: 0.25rem 0;
+    opacity: 0.9;
+}
+
+.nav-tabs-custom {
+    border: none;
+    background: #f8f9fa;
+    padding: 0 1.5rem;
+}
+
+.nav-tabs-custom .nav-link {
+    border: none;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 1rem 1.5rem;
+    border-radius: 0;
+    background: transparent;
+    position: relative;
+}
+
+.nav-tabs-custom .nav-link.active {
+    color: #667eea;
+    background: white;
+    border-bottom: 3px solid #667eea;
+}
+
+.general-info-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: #667eea;
+}
+
+.info-label {
+    font-weight: 500;
+    color: #6c757d;
+    min-width: 120px;
+}
+
+.info-value {
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+.activity-item {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-left: 4px solid #667eea;
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    color: white;
+    font-weight: bold;
+}
+
+.activity-icon.interaction { background: #28a745; }
+.activity-icon.meeting { background: #007bff; }
+.activity-icon.quote { background: #ffc107; color: #000; }
+.activity-icon.quote-update { background: #17a2b8; }
+
+.activity-meta {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-left: auto;
+}
+
+.activity-content {
+    color: #2c3e50;
+    line-height: 1.6;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-active { background: #d4edda; color: #155724; }
+.status-new { background: #cce5ff; color: #004085; }
+.status-contacted { background: #fff3cd; color: #856404; }
+.status-interested { background: #d1ecf1; color: #0c5460; }
+.status-quoted { background: #f8d7da; color: #721c24; }
+
+.quote-form {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.btn-primary-custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 25px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+}
+
+.btn-primary-custom:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.edit-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+}
+
+.btn-sm {
+    margin-left: 0.5rem;
+}
+.activity-icon.follow-up-update { background: #6f42c1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Client Details Header -->
+  <div class="client-details-header">
+    <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center">
+        <a href="{{ url_for('main.leads') }}" class="text-white me-3">
+          <i class="fas fa-arrow-left fa-lg"></i>
+        </a>
+        <div class="client-avatar">
+          {{ lead.name[0].upper() }}
+        </div>
+        <div class="client-info">
+          <h2>{{ lead.name }}</h2>
+          <p><i class="fas fa-briefcase me-2"></i>{{ lead.course_interest.name if lead.course_interest else 'No Course Selected' }}</p>
+        </div>
+      </div>
+      <button class="edit-btn" onclick="editLead({{ lead.id }})">
+        <i class="fas fa-edit me-2"></i>Edit
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <ul class="nav nav-tabs nav-tabs-custom" id="leadTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+        Overview ({{ quotes|length }})
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+        Activity log
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content" id="leadTabsContent">
+    <!-- Overview Tab -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+      <div class="row mt-4">
+        <!-- Left Column - General Info -->
+        <div class="col-lg-5">
+          <div class="general-info-card">
+            <h5 class="mb-3">General Info</h5>
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-circle" style="font-size: 0.5rem; color: {{ 'green' if lead.status == 'Active' else '#ffc107' }}"></i>
+              </div>
+              <span class="info-label">Status</span>
+              <span class="info-value">
+                <span class="status-badge status-{{ lead.status.lower() }}">{{ lead.status }}</span>
+              </span>
+            </div>
+            {% if lead.course_interest %}
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-graduation-cap"></i>
+              </div>
+              <span class="info-label">Course Interest</span>
+              <span class="info-value">{{ lead.course_interest.name }}</span>
+            </div>
+            {% endif %}
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-phone"></i>
+              </div>
+              <span class="info-label">Phone number</span>
+              <span class="info-value text-primary">{{ lead.phone }}</span>
+            </div>
+            {% if lead.email %}
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-envelope"></i>
+              </div>
+              <span class="info-label">Email</span>
+              <span class="info-value text-primary">{{ lead.email }}</span>
+            </div>
+            {% endif %}
+            {% if lead.whatsapp %}
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fab fa-whatsapp"></i>
+              </div>
+              <span class="info-label">WhatsApp</span>
+              <span class="info-value text-success">{{ lead.whatsapp }}</span>
+            </div>
+            {% endif %}
+            {% if lead.lead_source %}
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-code-branch"></i>
+              </div>
+              <span class="info-label">Lead Source</span>
+              <span class="info-value">{{ lead.lead_source }}</span>
+            </div>
+            {% endif %}
+            <!-- Follow-up Info -->
+            <div class="info-item">
+              <div class="info-icon">
+                <i class="fas fa-calendar-check"></i>
+              </div>
+              <span class="info-label">Next Follow-up</span>
+              <span class="info-value">
+                {% if lead.next_followup_date and lead.followup_time %}
+                  {{ lead.next_followup_date.strftime('%b %d, %Y') }} {{ lead.followup_time.strftime('%H:%M') }} - {{ lead.followup_type }} ({{ lead.followup_priority or 'Not set' }})
+                {% else %}
+                  Not set
+                {% endif %}
+              </span>
+              <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editFollowupModal" onclick="openEditFollowupModal('{{ lead.next_followup_date.strftime('%Y-%m-%d') if lead.next_followup_date else '' }}', '{{ lead.followup_time.strftime('%H:%M') if lead.followup_time else '' }}', '{{ lead.followup_type or '' }}', '{{ lead.followup_priority or '' }}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+            </div>
+          </div>
+
+          <!-- Latest Lead Info -->
+          <div class="general-info-card">
+            <h5 class="mb-3">Latest Lead</h5>
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <p class="mb-1"><strong>{{ lead.name }}</strong></p>
+                <p class="text-muted mb-0">Est. revenue</p>
+              </div>
+              <div class="text-end">
+                <h5 class="mb-0">AED {{ lead.quoted_amount or 0 }}</h5>
+                {% if lead.next_followup_date %}
+                <p class="text-muted mb-0">Next meeting: {{ lead.next_followup_date.strftime('%b %d, %Y') }}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Quote Form -->
+          {% if quotes|length == 0 and lead.course_interest %}
+          <div class="quote-form" id="quoteForm">
+            <h5 class="mb-3">Add Quotation for {{ lead.course_interest.name }}</h5>
+            <form method="POST" action="{{ url_for('main.add_lead_quote', id=lead.id) }}">
+              <input type="hidden" name="course_id" value="{{ lead.course_interest.id }}">
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Amount (AED)</label>
+                  <input type="number" class="form-control" name="quoted_amount" placeholder="Enter amount" step="0.01" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Valid Until</label>
+                  <input type="date" class="form-control" name="valid_until" required>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Quote Notes</label>
+                <textarea class="form-control" name="quote_notes" rows="3" placeholder="Additional notes for this quote"></textarea>
+              </div>
+              <input type="hidden" name="currency" value="AED">
+              <button type="submit" class="btn btn-primary-custom">Add Quote</button>
+            </form>
+          </div>
+          {% elif quotes|length == 0 %}
+          <div class="quote-form">
+            <p class="text-muted">Select a course interest for this lead to add quotations.</p>
+            <a href="{{ url_for('main.edit_lead', id=lead.id) }}" class="btn btn-outline-primary">Edit Lead</a>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Right Column - Quotes -->
+        <div class="col-lg-7">
+          <div class="general-info-card">
+            <h5 class="mb-3">Quotes ({{ quotes|length }})</h5>
+            {% if quotes %}
+              {% for quote in quotes %}
+              <div class="activity-item mb-3">
+                <div class="activity-header">
+                  <div class="activity-icon quote">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                  </div>
+                  <div>
+                    <h6 class="mb-1">{{ quote.course.name }}</h6>
+                    <div class="activity-meta">
+                      {{ quote.created_at.strftime('%H:%M - %b %d, %Y') }}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <h5 class="mb-0 text-primary">{{ quote.currency }} {{ quote.quoted_amount }}</h5>
+                    <small class="text-muted">Valid until: {{ quote.valid_until.strftime('%b %d, %Y') }}</small>
+                    <div class="mt-2">
+                      <button class="btn btn-sm btn-outline-primary" onclick="editQuote({{ quote.id }})">
+                        <i class="fas fa-edit"></i> Edit
+                      </button>
+                      <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#editQuoteAmountModal" onclick="openEditQuoteModal({{ quote.id }}, {{ quote.quoted_amount }})">
+                        <i class="fas fa-money-bill"></i> Edit Amount
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {% if quote.quote_notes %}
+                <div class="activity-content">
+                  {{ quote.quote_notes }}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted">No quotes created yet. Use the form on the left to add a quote.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Tab -->
+    <div class="tab-pane fade" id="activity" role="tabpanel">
+      <div class="mt-4">
+        {% if activities %}
+          {% for activity in activities %}
+          <div class="activity-item">
+            <div class="activity-header">
+              <div class="activity-icon {{ activity.type }}">
+                {% if activity.type == 'interaction' %}
+                  <i class="fas fa-comments"></i>
+                {% elif activity.type == 'meeting' %}
+                  <i class="fas fa-calendar"></i>
+                {% elif activity.type == 'quote' %}
+                  <i class="fas fa-file-invoice-dollar"></i>
+                {% elif activity.type == 'quote-update' %}
+                  <i class="fas fa-money-bill"></i>
+                {% elif activity.type == 'follow-up-update' %}
+                  <i class="fas fa-calendar-check"></i>
+                {% endif %}
+              </div>
+              <div>
+                <h6 class="mb-1">{{ activity.subtype.title() }}</h6>
+                <div class="activity-meta">
+                  {{ activity.date.strftime('%H:%M - %b %d, %Y') }} • {{ activity.created_by }}
+                </div>
+              </div>
+            </div>
+            <div class="activity-content">
+              {{ activity.content }}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No activity recorded yet.</p>
+          </div>
+        {% endif %}
+        
+        <!-- Add Activity Form - Chat Style -->
+        <div class="activity-form mt-4 border-top pt-4">
+          <h6 class="text-primary mb-3">
+            <i class="fas fa-plus-circle me-2"></i>Add Activity Comment
+          </h6>
+          <form method="POST" action="{{ url_for('main.add_lead_activity', lead_id=lead.id) }}" id="activityForm">
+            {{ activity_form.hidden_tag() }}
+            <div class="mb-3">
+              {{ activity_form.comment(class="form-control") }}
+            </div>
+            <button type="submit" class="btn btn-primary-custom btn-sm">
+              <i class="fas fa-paper-plane me-1"></i>Add Comment
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Quote Amount Modal -->
+  <div class="modal fade" id="editQuoteAmountModal" tabindex="-1" aria-labelledby="editQuoteAmountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editQuoteAmountModalLabel">Edit Quote Amount</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editQuoteAmountForm" method="POST" action="{{ url_for('main.update_quote_amount', id=0) }}">
+            <input type="hidden" name="quote_id" id="quoteId">
+            <div class="mb-3">
+              <label for="quotedAmount" class="form-label">New Quote Amount (AED)</label>
+              <input type="number" class="form-control" id="quotedAmount" name="quoted_amount" step="0.01" required>
+            </div>
+            <button type="submit" class="btn btn-primary-custom">Update Amount</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Follow-up Modal -->
+  <div class="modal fade" id="editFollowupModal" tabindex="-1" aria-labelledby="editFollowupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editFollowupModalLabel">Edit Follow-up</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editFollowupForm" method="POST" action="{{ url_for('main.update_lead_followup', id=lead.id) }}">
+            {{ followup_form.hidden_tag() }}
+            <div class="mb-3">
+              <label for="followupDate" class="form-label">Follow-up Date</label>
+              {{ followup_form.followup_date(class="form-control", id="followupDate", required=True) }}
+            </div>
+            <div class="mb-3">
+              <label for="followupTime" class="form-label">Follow-up Time</label>
+              {{ followup_form.followup_time(class="form-control", id="followupTime", required=True) }}
+            </div>
+            <div class="mb-3">
+              <label for="followupType" class="form-label">Follow-up Type</label>
+              {{ followup_form.followup_type(class="form-select", id="followupType", required=True) }}
+            </div>
+            <div class="mb-3">
+              <label for="priority" class="form-label">Priority</label>
+              {{ followup_form.priority(class="form-select", required=True) }}
+            </div>
+            <div class="mb-3">
+              <label for="notes" class="form-label">Notes</label>
+              {{ followup_form.notes(class="form-control") }}
+            </div>
+            <button type="submit" class="btn btn-primary-custom">Update Follow-up</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+function editLead(leadId) {
+  window.location.href = `/leads/${leadId}/edit`;
+}
+
+function editQuote(quoteId) {
+  alert('Quote editing functionality will be implemented');
+}
+
+function openEditQuoteModal(quoteId, currentAmount) {
+  document.getElementById('quoteId').value = quoteId;
+  document.getElementById('quotedAmount').value = currentAmount;
+  document.getElementById('editQuoteAmountForm').action = `/leads/quote/${quoteId}/update_amount`;
+}
+
+function openEditFollowupModal(date, time, type, priority) {
+  document.getElementById('followupDate').value = date;
+  document.getElementById('followupTime').value = time;
+  document.getElementById('followupType').value = type;
+  document.getElementById('priority').value = priority;
+}
+
+document.getElementById('editQuoteAmountForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = this;
+  const quoteId = document.getElementById('quoteId').value;
+  const quotedAmount = document.getElementById('quotedAmount').value;
+
+  fetch(`/leads/quote/${quoteId}/update_amount`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: new URLSearchParams({
+      'quote_id': quoteId,
+      'quoted_amount': quotedAmount
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Quote amount updated successfully!');
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error updating quote amount:', error);
+    alert('An error occurred while updating the quote amount.');
+  });
+});
+
+document.getElementById('editFollowupForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = this;
+  const formData = new FormData(form);
+
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Follow-up updated successfully!');
+      location.reload();
+    } else {
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error updating follow-up:', error);
+    alert('An error occurred while updating the follow-up.');
+  });
+});
+</script>
+{% endblock %}

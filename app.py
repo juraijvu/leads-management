@@ -6,6 +6,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -19,11 +20,16 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
+    app.secret_key = os.environ.get("SESSION_SECRET", "training-center-crm-secret-key-2024-secure-deployment")
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
     
-    # MySQL database configuration
-    app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root@localhost:3306/leads"
+    # PostgreSQL database configuration for Replit
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///crm.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
     
     # Mail configuration
     app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -47,12 +53,6 @@ def create_app():
         import json
         return json.dumps(obj, default=str)
     
-    # Add custom template filter
-    @app.template_filter('tojsonfilter')
-    def to_json_filter(obj):
-        import json
-        return json.dumps(obj, default=str)
-    
     with app.app_context():
         # Import models and routes
         import models
@@ -61,8 +61,8 @@ def create_app():
         # Register blueprints
         app.register_blueprint(routes.main)
         
-        # Note: We'll use migrations instead of db.create_all()
-        # db.create_all()
+        # Create all tables
+        db.create_all()
         
         # Create default admin user if it doesn't exist
         from models import User
@@ -78,9 +78,9 @@ def create_app():
                 )
                 db.session.add(admin_user)
                 db.session.commit()
+                print("Admin user created successfully")
         except Exception as e:
-            # Tables might not exist yet, will be created with migration
-            print(f"Admin user creation skipped: {e}")
+            print(f"Admin user creation error: {e}")
     
     return app
 
