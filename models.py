@@ -8,11 +8,38 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default='user')
+    role = db.Column(db.String(20), default='consultant')  # admin, superadmin, consultant
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Role-based permissions
+    can_view_all_leads = db.Column(db.Boolean, default=False)
+    can_manage_users = db.Column(db.Boolean, default=False)
+    can_view_reports = db.Column(db.Boolean, default=False)
+    can_manage_courses = db.Column(db.Boolean, default=False)
+    can_manage_settings = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    created_by = db.relationship('User', remote_side=[id], backref='created_users')
     
     def __repr__(self):
         return f'<User {self.username}>'
+    
+    def is_admin(self):
+        return self.role == 'admin'
+    
+    def is_superadmin(self):
+        return self.role == 'superadmin'
+    
+    def is_consultant(self):
+        return self.role == 'consultant'
+    
+    def can_view_lead(self, lead):
+        """Check if user can view a specific lead"""
+        if self.is_admin() or self.can_view_all_leads:
+            return True
+        return lead.created_by_id == self.id
 
 class Lead(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -275,7 +302,7 @@ class Trainer(db.Model):
     
     @property
     def courses(self):
-        return [tc.course for tc in self.trainer_courses]
+        return [tc.course for tc in self.trainer_courses.all()]
 
 class TrainerCourse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -312,7 +339,7 @@ class ClassSchedule(db.Model):
     
     @property
     def students(self):
-        return [cs.student for cs in self.class_students]
+        return [cs.student for cs in self.class_students.all()]
 
 class ClassStudent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -378,3 +405,33 @@ class PaymentSettings(db.Model):
     payment_reminder_days = db.Column(db.Integer, default=3)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Setting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), nullable=False)
+    value = db.Column(db.Text, nullable=False)
+    display_name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (db.Index('idx_key_value', 'key', db.text('value(150)')),)
+    
+    @classmethod
+    def get_by_key(cls, key):
+        return cls.query.filter_by(key=key, is_active=True).order_by(cls.sort_order).all()
+    
+    @classmethod
+    def get_single_value(cls, key, default=None):
+        setting = cls.query.filter_by(key=key, is_active=True).first()
+        return setting.value if setting else default
+    
+    @classmethod
+    def get_choices(cls, key):
+        settings = cls.get_by_key(key)
+        return [(s.value, s.display_name) for s in settings]
+    
+    def __repr__(self):
+        return f'<Setting {self.key}: {self.value}>'

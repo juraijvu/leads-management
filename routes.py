@@ -26,19 +26,28 @@ def dashboard():
     meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
     meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
-    # Dashboard statistics - USER SPECIFIC
-    total_leads = Lead.query.filter_by(created_by_id=current_user.id).count()
+    # Dashboard statistics - ROLE-BASED ACCESS
+    if current_user.is_admin() or current_user.can_view_all_leads:
+        total_leads = Lead.query.count()
+        recent_leads = Lead.query.order_by(desc(Lead.created_at)).limit(5).all()
+        today_followups = Lead.query.filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
+        pipeline_data = {
+            'New': Lead.query.filter_by(status='New').count(),
+            'Contacted': Lead.query.filter_by(status='Contacted').count(),
+            'Interested': Lead.query.filter_by(status='Interested').count(),
+            'Quoted': Lead.query.filter_by(status='Quoted').count(),
+            'Converted': Lead.query.filter_by(status='Converted').count(),
+            'Lost': Lead.query.filter_by(status='Lost').count()
+        }
+    else:
+        # USER SPECIFIC DATA for consultants
+        total_leads = Lead.query.filter_by(created_by_id=current_user.id).count()
+        recent_leads = Lead.query.filter_by(created_by_id=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
+        today_followups = Lead.query.filter_by(created_by_id=current_user.id).filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
+        pipeline_data = Lead.get_user_pipeline_data(current_user.id)
+        
     total_students = Student.query.count()  # Students can be common
     total_courses = Course.query.filter_by(is_active=True).count()  # Courses are common
-    
-    # Recent leads - USER SPECIFIC
-    recent_leads = Lead.query.filter_by(created_by_id=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
-    
-    # Today's follow-ups - USER SPECIFIC
-    today_followups = Lead.query.filter_by(created_by_id=current_user.id).filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
-    
-    # Pipeline data - USER SPECIFIC
-    pipeline_data = Lead.get_user_pipeline_data(current_user.id)
     
     # Monthly revenue
     monthly_revenue = db.session.query(
@@ -64,8 +73,8 @@ def dashboard():
 def get_lead(id):
     lead = Lead.query.get_or_404(id)
     
-    # USER ACCESS CONTROL - Only allow viewing own leads
-    if lead.created_by_id != current_user.id:
+    # ROLE-BASED ACCESS CONTROL
+    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
         return jsonify({
             'success': False,
             'message': 'You can only view your own leads!'
@@ -91,8 +100,8 @@ def get_lead(id):
 def lead_detail(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     
-    # USER ACCESS CONTROL - Only allow viewing own leads
-    if lead.created_by_id != current_user.id:
+    # ROLE-BASED ACCESS CONTROL
+    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
         flash('You can only view your own leads!', 'error')
         return redirect(url_for('main.leads'))
     
@@ -168,8 +177,8 @@ def lead_detail(lead_id):
 def update_quote_amount(id):
     quote = LeadQuote.query.get_or_404(id)
     
-    # Access control: Ensure the lead belongs to the current user
-    if quote.lead.created_by_id != current_user.id:
+    # ROLE-BASED ACCESS CONTROL
+    if not (current_user.is_admin() or current_user.can_view_all_leads or quote.lead.created_by_id == current_user.id):
         return jsonify({
             'success': False,
             'message': 'You can only edit quotes for your own leads!'
@@ -256,8 +265,25 @@ def leads():
     status_filter = request.args.get('status', '')
     course_filter = request.args.get('course', '')
     
-    # USER SPECIFIC LEADS ONLY
-    query = Lead.get_user_leads(current_user.id, status_filter, search, course_filter)
+    # ROLE-BASED ACCESS CONTROL FOR LEADS
+    if current_user.is_admin() or current_user.can_view_all_leads:
+        # Admin sees all leads
+        query = Lead.query
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        if search:
+            query = query.filter(
+                db.or_(
+                    Lead.name.ilike(f'%{search}%'),
+                    Lead.phone.ilike(f'%{search}%'),
+                    Lead.email.ilike(f'%{search}%')
+                )
+            )
+        if course_filter:
+            query = query.filter_by(course_interest_id=course_filter)
+    else:
+        # Consultants see only their own leads
+        query = Lead.get_user_leads(current_user.id, status_filter, search, course_filter)
     
     leads_pagination = query.order_by(desc(Lead.created_at)).paginate(
         page=page, per_page=20, error_out=False
@@ -292,8 +318,8 @@ def edit_lead(id):
     
     lead = Lead.query.get_or_404(id)
     
-    # USER ACCESS CONTROL - Only allow editing own leads
-    if lead.created_by_id != current_user.id:
+    # ROLE-BASED ACCESS CONTROL
+    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({
                 'success': False,
@@ -407,14 +433,27 @@ def pipeline():
     lead_form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     
     meeting_form = MeetingForm()
-    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
-    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
-    pipeline_data = db.session.query(
-        Lead.status,
-        func.count(Lead.id).label('count'),
-        func.sum(Lead.quoted_amount).label('total_value')
-    ).group_by(Lead.status).all()
+    # ROLE-BASED ACCESS CONTROL FOR PIPELINE
+    if current_user.is_admin() or current_user.can_view_all_leads:
+        # Admin sees all leads
+        pipeline_query = db.session.query(
+            Lead.status,
+            func.count(Lead.id).label('count'),
+            func.sum(Lead.quoted_amount).label('total_value')
+        )
+        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    else:
+        # Consultants see only their own leads
+        pipeline_query = db.session.query(
+            Lead.status,
+            func.count(Lead.id).label('count'),
+            func.sum(Lead.quoted_amount).label('total_value')
+        ).filter(Lead.created_by_id == current_user.id)
+        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted', Lead.created_by_id == current_user.id).all()]
+    
+    pipeline_data = pipeline_query.group_by(Lead.status).all()
+    meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     pipeline_dict = {}
     for status, count, total_value in pipeline_data:
@@ -430,7 +469,10 @@ def pipeline():
     
     leads_by_status = {}
     for status in statuses:
-        leads_by_status[status] = Lead.query.filter_by(status=status).all()
+        if current_user.is_admin() or current_user.can_view_all_leads:
+            leads_by_status[status] = Lead.query.filter_by(status=status).all()
+        else:
+            leads_by_status[status] = Lead.query.filter_by(status=status, created_by_id=current_user.id).all()
     
     return render_template('pipeline.html',
                          pipeline_data=pipeline_dict,
@@ -449,9 +491,26 @@ def meetings():
     week_start = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
     week_end = datetime.combine(week_start + timedelta(days=6), datetime.max.time())
     
-    meetings = Meeting.query.filter(
-        Meeting.meeting_date >= start_of_month
-    ).order_by(Meeting.meeting_date).all()
+    # ROLE-BASED ACCESS CONTROL FOR MEETINGS
+    if current_user.is_admin() or current_user.can_view_all_leads:
+        # Admin sees all meetings
+        meetings = Meeting.query.filter(
+            Meeting.meeting_date >= start_of_month
+        ).order_by(Meeting.meeting_date).all()
+        
+        # Admin can schedule meetings for any lead
+        meeting_form = MeetingForm()
+        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
+    else:
+        # Consultants see only their own meetings
+        meetings = Meeting.query.filter(
+            Meeting.meeting_date >= start_of_month,
+            Meeting.created_by_id == current_user.id
+        ).order_by(Meeting.meeting_date).all()
+        
+        # Consultants can only schedule meetings for their own leads
+        meeting_form = MeetingForm()
+        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted', Lead.created_by_id == current_user.id).all()]
     
     meetings_data = [
         {
@@ -467,9 +526,6 @@ def meetings():
     ]
     
     current_date = today.strftime('%B %Y')
-    
-    meeting_form = MeetingForm()
-    meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
     meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     return render_template('meetings.html',
@@ -887,9 +943,9 @@ def reports():
     ).group_by(Course.name).all()
 
     monthly_trends = db.session.query(
-        func.date_format(Lead.created_at, '%Y-%m').label('month'),
+        func.to_char(Lead.created_at, 'YYYY-MM').label('month'),
         func.count(Lead.id).label('count')
-    ).group_by(func.date_format(Lead.created_at, '%Y-%m')).limit(12).all()
+    ).group_by(func.to_char(Lead.created_at, 'YYYY-MM')).limit(12).all()
 
     return render_template('reports.html',
                          monthly_leads=monthly_leads,
@@ -902,35 +958,136 @@ def reports():
 @main.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    form = SettingsForm()
+    """Comprehensive settings management"""
     
-    settings_dict = {}
-    for setting in SystemSettings.query.all():
-        settings_dict[setting.setting_key] = setting.setting_value
+    # Get all settings categories
+    lead_sources = Setting.get_by_key('lead_source')
+    lead_statuses = Setting.get_by_key('lead_status') 
+    followup_types = Setting.get_by_key('followup_type')
+    priority_levels = Setting.get_by_key('priority_level')
+    meeting_types = Setting.get_by_key('meeting_type')
     
-    if form.validate_on_submit():
-        for field in form:
-            if field.name != 'csrf_token' and field.data:
-                setting = SystemSettings.query.filter_by(setting_key=field.name).first()
+    # Get system settings
+    system_settings = {}
+    system_keys = ['company_name', 'company_email', 'company_phone', 'company_address', 
+                   'default_currency', 'timezone', 'leads_per_page', 'auto_followup_days',
+                   'email_notifications', 'sms_notifications']
+    
+    for key in system_keys:
+        system_settings[key] = Setting.get_single_value(key, '')
+    
+    # Initialize forms
+    setting_form = SettingForm()
+    system_form = SystemSettingsForm()
+    
+    # Populate system form with current values
+    system_form.company_name.data = system_settings.get('company_name', '')
+    system_form.company_email.data = system_settings.get('company_email', '')
+    system_form.company_phone.data = system_settings.get('company_phone', '')
+    system_form.company_address.data = system_settings.get('company_address', '')
+    system_form.default_currency.data = system_settings.get('default_currency', 'USD')
+    system_form.timezone.data = system_settings.get('timezone', 'UTC')
+    
+    try:
+        system_form.leads_per_page.data = int(system_settings.get('leads_per_page', '20'))
+        system_form.auto_followup_days.data = int(system_settings.get('auto_followup_days', '3'))
+    except (ValueError, TypeError):
+        system_form.leads_per_page.data = 20
+        system_form.auto_followup_days.data = 3
+    
+    system_form.email_notifications.data = system_settings.get('email_notifications', 'true') == 'true'
+    system_form.sms_notifications.data = system_settings.get('sms_notifications', 'false') == 'true'
+    
+    # Handle form submissions
+    if request.method == 'POST':
+        if 'save_system_settings' in request.form and system_form.validate_on_submit():
+            # Update system settings
+            system_updates = {
+                'company_name': system_form.company_name.data,
+                'company_email': system_form.company_email.data,
+                'company_phone': system_form.company_phone.data,
+                'company_address': system_form.company_address.data,
+                'default_currency': system_form.default_currency.data,
+                'timezone': system_form.timezone.data,
+                'leads_per_page': str(system_form.leads_per_page.data),
+                'auto_followup_days': str(system_form.auto_followup_days.data),
+                'email_notifications': str(system_form.email_notifications.data).lower(),
+                'sms_notifications': str(system_form.sms_notifications.data).lower()
+            }
+            
+            for key, value in system_updates.items():
+                setting = Setting.query.filter_by(key=key).first()
                 if setting:
-                    setting.setting_value = str(field.data)
+                    setting.value = value
+                    setting.updated_at = datetime.utcnow()
                 else:
-                    setting = SystemSettings(
-                        setting_key=field.name,
-                        setting_value=str(field.data),
-                        setting_type='string'
+                    new_setting = Setting(
+                        key=key,
+                        value=value,
+                        display_name=key.replace('_', ' ').title(),
+                        is_active=True
                     )
-                    db.session.add(setting)
-        
-        db.session.commit()
-        flash('Settings updated successfully!', 'success')
+                    db.session.add(new_setting)
+            
+            db.session.commit()
+            flash('System settings updated successfully!', 'success')
+            return redirect(url_for('main.settings'))
+            
+        elif 'add_setting' in request.form and setting_form.validate_on_submit():
+            # Add new setting
+            new_setting = Setting(
+                key=setting_form.key.data,
+                value=setting_form.value.data,
+                display_name=setting_form.display_name.data,
+                description=setting_form.description.data,
+                is_active=setting_form.is_active.data,
+                sort_order=setting_form.sort_order.data
+            )
+            db.session.add(new_setting)
+            db.session.commit()
+            flash('Setting added successfully!', 'success')
+            return redirect(url_for('main.settings'))
+    
+    return render_template('settings.html', 
+                         lead_sources=lead_sources,
+                         lead_statuses=lead_statuses,
+                         followup_types=followup_types,
+                         priority_levels=priority_levels,
+                         meeting_types=meeting_types,
+                         system_settings=system_settings,
+                         setting_form=setting_form,
+                         system_form=system_form)
+
+@main.route('/settings/delete/<int:setting_id>', methods=['POST'])
+@login_required
+def delete_setting(setting_id):
+    """Delete a setting"""
+    if not (current_user.is_admin() or current_user.can_manage_settings):
+        flash('Access denied. You do not have permission to manage settings.', 'error')
         return redirect(url_for('main.settings'))
     
-    for field in form:
-        if field.name in settings_dict:
-            field.data = settings_dict[field.name]
+    setting = Setting.query.get_or_404(setting_id)
+    db.session.delete(setting)
+    db.session.commit()
+    flash(f'Setting "{setting.display_name}" deleted successfully!', 'success')
+    return redirect(url_for('main.settings'))
+
+@main.route('/settings/toggle/<int:setting_id>', methods=['POST'])
+@login_required
+def toggle_setting(setting_id):
+    """Toggle setting active status"""
+    if not (current_user.is_admin() or current_user.can_manage_settings):
+        flash('Access denied. You do not have permission to manage settings.', 'error')
+        return redirect(url_for('main.settings'))
     
-    return render_template('settings.html', form=form)
+    setting = Setting.query.get_or_404(setting_id)
+    setting.is_active = not setting.is_active
+    setting.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    status = "activated" if setting.is_active else "deactivated"
+    flash(f'Setting "{setting.display_name}" {status} successfully!', 'success')
+    return redirect(url_for('main.settings'))
 
 @main.route('/api/leads/<int:id>/status', methods=['POST'])
 @login_required
@@ -1191,8 +1348,8 @@ def add_lead():
 def update_lead_followup(id):
     lead = Lead.query.get_or_404(id)
     
-    # Access control: Ensure the lead belongs to the current user
-    if lead.created_by_id != current_user.id:
+    # ROLE-BASED ACCESS CONTROL
+    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
         return jsonify({
             'success': False,
             'message': 'You can only edit your own leads!'
@@ -1682,3 +1839,191 @@ def generate_tabby_payment_url(payment_link, provider):
 
 def generate_tamara_payment_url(payment_link, provider):
     return f"https://api.tamara.co/{provider.environment}/checkout/{payment_link.payment_reference}"
+
+# User Management Routes
+@main.route('/users')
+@login_required
+def users():
+    """View all users - only for admins and users with user management permission"""
+    if not (current_user.is_admin() or current_user.can_manage_users):
+        flash('Access denied. You do not have permission to manage users.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    all_users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('users.html', users=all_users)
+
+@main.route('/users/add', methods=['GET', 'POST'])
+@login_required  
+def add_user():
+    """Add new user - only for admins"""
+    if not current_user.is_admin():
+        flash('Access denied. Only administrators can add users.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    form = UserForm()
+    
+    if form.validate_on_submit():
+        # Check if username or email already exists
+        existing_user = User.query.filter(
+            (User.username == form.username.data) | (User.email == form.email.data)
+        ).first()
+        
+        if existing_user:
+            flash('Username or email already exists!', 'error')
+            return render_template('add_user.html', form=form)
+        
+        # Create new user
+        new_user = User()
+        new_user.username = form.username.data
+        new_user.email = form.email.data
+        new_user.password_hash = generate_password_hash(form.password.data)
+        new_user.role = form.role.data
+        new_user.is_active = form.is_active.data
+        new_user.created_by_id = current_user.id
+        
+        # Set permissions for superadmin role
+        if form.role.data == 'superadmin':
+            new_user.can_view_all_leads = form.can_view_all_leads.data
+            new_user.can_manage_users = form.can_manage_users.data
+            new_user.can_view_reports = form.can_view_reports.data
+            new_user.can_manage_courses = form.can_manage_courses.data
+            new_user.can_manage_settings = form.can_manage_settings.data
+        elif form.role.data == 'admin':
+            # Admin gets all permissions
+            new_user.can_view_all_leads = True
+            new_user.can_manage_users = True
+            new_user.can_view_reports = True
+            new_user.can_manage_courses = True
+            new_user.can_manage_settings = True
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash(f'User {new_user.username} created successfully!', 'success')
+        return redirect(url_for('main.users'))
+    
+    return render_template('add_user.html', form=form)
+
+@main.route('/users/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_user(id):
+    """Edit existing user - only for admins"""
+    if not current_user.is_admin():
+        flash('Access denied. Only administrators can edit users.', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    user = User.query.get_or_404(id)
+    form = EditUserForm(obj=user)
+    
+    if form.validate_on_submit():
+        # Check if username or email conflicts with other users
+        existing_user = User.query.filter(
+            User.id != id,
+            (User.username == form.username.data) | (User.email == form.email.data)
+        ).first()
+        
+        if existing_user:
+            flash('Username or email already exists!', 'error')
+            return render_template('edit_user.html', form=form, user=user)
+        
+        # Update user details
+        user.username = form.username.data
+        user.email = form.email.data
+        user.role = form.role.data
+        user.is_active = form.is_active.data
+        
+        # Update permissions for superadmin role
+        if form.role.data == 'superadmin':
+            user.can_view_all_leads = form.can_view_all_leads.data
+            user.can_manage_users = form.can_manage_users.data
+            user.can_view_reports = form.can_view_reports.data
+            user.can_manage_courses = form.can_manage_courses.data
+            user.can_manage_settings = form.can_manage_settings.data
+        elif form.role.data == 'admin':
+            # Admin gets all permissions
+            user.can_view_all_leads = True
+            user.can_manage_users = True
+            user.can_view_reports = True
+            user.can_manage_courses = True
+            user.can_manage_settings = True
+        else:  # consultant
+            user.can_view_all_leads = False
+            user.can_manage_users = False
+            user.can_view_reports = False
+            user.can_manage_courses = False
+            user.can_manage_settings = False
+        
+        db.session.commit()
+        flash(f'User {user.username} updated successfully!', 'success')
+        return redirect(url_for('main.users'))
+    
+    return render_template('edit_user.html', form=form, user=user)
+
+@main.route('/users/<int:id>/toggle-status', methods=['POST'])
+@login_required
+def toggle_user_status(id):
+    """Toggle user active/inactive status - only for admins"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    user = User.query.get_or_404(id)
+    
+    # Prevent admin from deactivating themselves
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'message': 'Cannot deactivate your own account'}), 400
+    
+    user.is_active = not user.is_active
+    db.session.commit()
+    
+    status = 'activated' if user.is_active else 'deactivated'
+    return jsonify({'success': True, 'message': f'User {status} successfully'})
+
+@main.route('/users/<int:id>/reset-password', methods=['POST'])
+@login_required
+def reset_user_password(id):
+    """Reset user password - only for admins"""
+    if not current_user.is_admin():
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    user = User.query.get_or_404(id)
+    
+    # Generate temporary password
+    temp_password = f"temp{user.id}{datetime.now().strftime('%d%m')}"
+    user.password_hash = generate_password_hash(temp_password)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Password reset successfully',
+        'temp_password': temp_password
+    })
+
+@main.route('/profile')
+@login_required
+def user_profile():
+    """View current user profile"""
+    return render_template('user_profile.html', user=current_user)
+
+@main.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change current user password"""
+    form = ChangePasswordForm()
+    
+    if form.validate_on_submit():
+        if not check_password_hash(current_user.password_hash, form.current_password.data):
+            flash('Current password is incorrect!', 'error')
+            return render_template('change_password.html', form=form)
+        
+        if form.new_password.data != form.confirm_password.data:
+            flash('New passwords do not match!', 'error')
+            return render_template('change_password.html', form=form)
+        
+        current_user.password_hash = generate_password_hash(form.new_password.data)
+        db.session.commit()
+        
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('main.user_profile'))
+    
+    return render_template('change_password.html', form=form)

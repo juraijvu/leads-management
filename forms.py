@@ -1,8 +1,9 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SelectField, FloatField, DateField, IntegerField, BooleanField, PasswordField, HiddenField, TimeField, SelectMultipleField
-from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange
+from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange, ValidationError
 from wtforms.widgets import TextArea
-from models import Course, User
+from models import Course, User, Setting
+import json
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
@@ -14,31 +15,34 @@ class LeadForm(FlaskForm):
     whatsapp = StringField('WhatsApp', validators=[Optional(), Length(max=20)])
     email = StringField('Email', validators=[Optional(), Email(), Length(max=120)])
     course_interest_id = SelectField('Course Interest', coerce=int, validators=[Optional()])
-    lead_source = SelectField('Lead Source', choices=[
-        ('Website', 'Website'),
-        ('Social Media', 'Social Media'),
-        ('Referral', 'Referral'),
-        ('Advertisement', 'Advertisement'),
-        ('Walk-in', 'Walk-in'),
-        ('Other', 'Other')
-    ], validators=[Optional()])
-    status = SelectField('Status', choices=[
-        ('New', 'New'),
-        ('Contacted', 'Contacted'),
-        ('Interested', 'Interested'),
-        ('Quoted', 'Quoted'),
-        ('Converted', 'Converted'),
-        ('Lost', 'Lost')
-    ], default='New')
+    lead_source = SelectField('Lead Source', validators=[Optional()])
+    status = SelectField('Status', default='New')
     quoted_amount = FloatField('Quoted Amount', validators=[Optional(), NumberRange(min=0)])
     next_followup_date = DateField('Next Follow-up Date', validators=[Optional()])
-    followup_type = SelectField('Follow-up Type', choices=[
-        ('Call', 'Call'),
-        ('Email', 'Email'),
-        ('WhatsApp', 'WhatsApp'),
-        ('Meeting', 'Meeting')
-    ], validators=[Optional()])
+    followup_type = SelectField('Follow-up Type', validators=[Optional()])
     comments = TextAreaField('Comments', validators=[Optional()])
+    
+    def __init__(self, *args, **kwargs):
+        super(LeadForm, self).__init__(*args, **kwargs)
+        # Load choices from database settings
+        self.lead_source.choices = Setting.get_choices('lead_source') or [
+            ('Website', 'Website'),
+            ('Social Media', 'Social Media'),
+            ('Referral', 'Referral')
+        ]
+        self.status.choices = Setting.get_choices('lead_status') or [
+            ('New', 'New'),
+            ('Contacted', 'Contacted'),
+            ('Interested', 'Interested'),
+            ('Quoted', 'Quoted'),
+            ('Converted', 'Converted'),
+            ('Lost', 'Lost')
+        ]
+        self.followup_type.choices = Setting.get_choices('followup_type') or [
+            ('Call', 'Call'),
+            ('Email', 'Email'),
+            ('WhatsApp', 'WhatsApp')
+        ]
 
 class ActivityForm(FlaskForm):
     comment = TextAreaField('Add Activity Comment', validators=[DataRequired()], render_kw={"placeholder": "What happened with this lead?", "rows": "3"})
@@ -69,13 +73,19 @@ class MeetingForm(FlaskForm):
     lead_id = SelectField('Lead', coerce=int, validators=[Optional()])
     student_id = SelectField('Student', coerce=int, validators=[Optional()])
     title = StringField('Meeting Title', validators=[DataRequired(), Length(max=200)])
-    meeting_type = SelectField('Meeting Type', choices=[
-        ('Online', 'Online'),
-        ('Offline', 'Offline')
-    ], validators=[DataRequired()])
+    meeting_type = SelectField('Meeting Type', validators=[DataRequired()])
     meeting_date = DateField('Meeting Date', validators=[DataRequired()])
     meeting_time = TimeField('Meeting Time', validators=[DataRequired()])
     duration = IntegerField('Duration (minutes)', validators=[DataRequired(), NumberRange(min=15, max=480)])
+    
+    def __init__(self, *args, **kwargs):
+        super(MeetingForm, self).__init__(*args, **kwargs)
+        # Load choices from database settings
+        self.meeting_type.choices = Setting.get_choices('meeting_type') or [
+            ('Consultation', 'Consultation'),
+            ('Course Demo', 'Course Demo'),
+            ('Follow-up', 'Follow-up')
+        ]
     meeting_link = StringField('Meeting Link', validators=[Optional(), Length(max=500)])
     location = StringField('Location', validators=[Optional(), Length(max=200)])
     agenda = TextAreaField('Agenda', validators=[Optional()])
@@ -268,6 +278,47 @@ class PaymentLinkForm(FlaskForm):
     ], default="AED", validators=[DataRequired()])
     description = StringField("Payment Description", validators=[DataRequired(), Length(max=500)])
     expires_in_days = IntegerField("Expires in (days)", validators=[DataRequired(), NumberRange(min=1, max=365)], default=7)
+
+# User Management Forms
+class UserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=64)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    role = SelectField('Role', choices=[
+        ('consultant', 'Consultant'),
+        ('superadmin', 'Super Admin'),
+        ('admin', 'Admin')
+    ], default='consultant', validators=[DataRequired()])
+    is_active = BooleanField('Active', default=True)
+    
+    # Permissions for superadmin role
+    can_view_all_leads = BooleanField('Can View All Leads', default=False)
+    can_manage_users = BooleanField('Can Manage Users', default=False)
+    can_view_reports = BooleanField('Can View Reports', default=False)
+    can_manage_courses = BooleanField('Can Manage Courses', default=False)
+    can_manage_settings = BooleanField('Can Manage Settings', default=False)
+
+class EditUserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=64)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    role = SelectField('Role', choices=[
+        ('consultant', 'Consultant'),
+        ('superadmin', 'Super Admin'),
+        ('admin', 'Admin')
+    ], validators=[DataRequired()])
+    is_active = BooleanField('Active', default=True)
+    
+    # Permissions for superadmin role
+    can_view_all_leads = BooleanField('Can View All Leads', default=False)
+    can_manage_users = BooleanField('Can Manage Users', default=False)
+    can_view_reports = BooleanField('Can View Reports', default=False)
+    can_manage_courses = BooleanField('Can Manage Courses', default=False)
+    can_manage_settings = BooleanField('Can Manage Settings', default=False)
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField('Current Password', validators=[DataRequired()])
+    new_password = PasswordField('New Password', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired()])
 
 # Lead Detail and Interaction Forms
 class LeadQuoteForm(FlaskForm):

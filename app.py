@@ -20,11 +20,12 @@ migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("SESSION_SECRET", "training-center-crm-secret-key-2024-secure-deployment")
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
     
-    # PostgreSQL database configuration for Replit
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///crm.db")
+    app.secret_key = os.environ.get("SESSION_SECRET", "training-center-crm-secret-key-2024-secure-deployment")
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
+    # MySQL database configuration
+    app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root@localhost:3306/leads"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
@@ -60,27 +61,6 @@ def create_app():
         
         # Register blueprints
         app.register_blueprint(routes.main)
-        
-        # Create all tables
-        db.create_all()
-        
-        # Create default admin user if it doesn't exist
-        from models import User
-        from werkzeug.security import generate_password_hash
-        
-        try:
-            if not User.query.filter_by(username='admin').first():
-                admin_user = User(
-                    username='admin',
-                    email='admin@trainingcenter.com',
-                    password_hash=generate_password_hash('admin123'),
-                    role='admin'
-                )
-                db.session.add(admin_user)
-                db.session.commit()
-                print("Admin user created successfully")
-        except Exception as e:
-            print(f"Admin user creation error: {e}")
     
     return app
 

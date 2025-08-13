@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Add New User{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Add New User</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.username.label(class="form-label") }}
+                                    {{ form.username(class="form-control") }}
+                                    {% if form.username.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.username.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.email.label(class="form-label") }}
+                                    {{ form.email(class="form-control") }}
+                                    {% if form.email.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.email.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.password.label(class="form-label") }}
+                                    {{ form.password(class="form-control") }}
+                                    {% if form.password.errors %}
+                                        <div class="text-danger">
+                                            {% for error in form.password.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.role.label(class="form-label") }}
+                                    {{ form.role(class="form-select", onchange="togglePermissions()") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <div class="form-check">
+                                {{ form.is_active(class="form-check-input") }}
+                                {{ form.is_active.label(class="form-check-label") }}
+                            </div>
+                        </div>
+
+                        <div id="permissions-section" style="display: none;">
+                            <h5>Permissions (for Super Admin role)</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        {{ form.can_view_all_leads(class="form-check-input") }}
+                                        {{ form.can_view_all_leads.label(class="form-check-label") }}
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        {{ form.can_manage_users(class="form-check-input") }}
+                                        {{ form.can_manage_users.label(class="form-check-label") }}
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        {{ form.can_view_reports(class="form-check-input") }}
+                                        {{ form.can_view_reports.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-2">
+                                        {{ form.can_manage_courses(class="form-check-input") }}
+                                        {{ form.can_manage_courses.label(class="form-check-label") }}
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        {{ form.can_manage_settings(class="form-check-input") }}
+                                        {{ form.can_manage_settings.label(class="form-check-label") }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.users') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePermissions() {
+    const roleSelect = document.querySelector('#role');
+    const permissionsSection = document.querySelector('#permissions-section');
+    
+    if (roleSelect.value === 'superadmin') {
+        permissionsSection.style.display = 'block';
+    } else {
+        permissionsSection.style.display = 'none';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    togglePermissions();
+});
+</script>
+{% endblock %}
