@@ -4,6 +4,7 @@ from wtforms.validators import DataRequired, Email, Length, Optional, NumberRang
 from wtforms.widgets import TextArea
 from models import Course, User, Setting
 import json
+from datetime import date
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
@@ -20,6 +21,7 @@ class LeadForm(FlaskForm):
     quoted_amount = FloatField('Quoted Amount', validators=[Optional(), NumberRange(min=0)])
     next_followup_date = DateField('Next Follow-up Date', validators=[Optional()])
     followup_type = SelectField('Follow-up Type', validators=[Optional()])
+    assigned_to = SelectField('Assigned Consultant', coerce=int, validators=[Optional()])
     comments = TextAreaField('Comments', validators=[Optional()])
     
     def __init__(self, *args, **kwargs):
@@ -43,6 +45,11 @@ class LeadForm(FlaskForm):
             ('Email', 'Email'),
             ('WhatsApp', 'WhatsApp')
         ]
+        # Load course choices
+        self.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+        # Load consultant users for assignment
+        consultants = User.query.filter_by(role='consultant', active=True).all()
+        self.assigned_to.choices = [(0, 'Select Consultant')] + [(u.id, u.username) for u in consultants]
 
 class ActivityForm(FlaskForm):
     comment = TextAreaField('Add Activity Comment', validators=[DataRequired()], render_kw={"placeholder": "What happened with this lead?", "rows": "3"})
@@ -111,6 +118,7 @@ class StudentForm(FlaskForm):
     phone = StringField('Phone', validators=[DataRequired(), Length(max=20)])
     email = StringField('Email', validators=[Optional(), Email()])
     course_id = SelectField('Course', coerce=int, validators=[DataRequired()])
+    enrollment_date = DateField('Enrollment Date', validators=[Optional()], default=lambda: date.today())
     schedule_days = SelectField('Schedule Days', choices=[
         ('weekdays', 'Weekdays (Mon-Fri)'),
         ('weekends', 'Weekends (Sat-Sun)')
@@ -223,30 +231,45 @@ class SettingsForm(FlaskForm):
     tabby_public_key = StringField('Tabby Public Key', validators=[Optional(), Length(max=200)])
     tabby_secret_key = StringField('Tabby Secret Key', validators=[Optional(), Length(max=200)])
     tamara_api_key = StringField('Tamara API Key', validators=[Optional(), Length(max=200)])
-    tamara_secret_key = StringField('Tamara Secret Key', validators=[Optional(), Length(max=200)])
+
+class SettingForm(FlaskForm):
+    key = StringField('Setting Key', validators=[DataRequired(), Length(max=100)])
+    value = StringField('Setting Value', validators=[DataRequired(), Length(max=500)])
+    display_name = StringField('Display Name', validators=[DataRequired(), Length(max=200)])
+    description = TextAreaField('Description', validators=[Optional()])
+    is_active = BooleanField('Active', default=True)
+    sort_order = IntegerField('Sort Order', validators=[Optional(), NumberRange(min=0)], default=0)
+
+class UserForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=25)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    password = PasswordField('Password', validators=[Optional(), Length(min=6)])
+    confirm_password = PasswordField('Confirm Password', validators=[Optional()])
+    role = SelectField('Role', choices=[
+        ('consultant', 'Consultant'),
+        ('admin', 'Admin'), 
+        ('super_admin', 'Super Admin')
+    ], validators=[DataRequired()])
+    active = BooleanField('Active', default=True)
+    can_view_all_leads = BooleanField('Can View All Leads', default=False)
+    can_manage_users = BooleanField('Can Manage Users', default=False)
+    can_view_reports = BooleanField('Can View Reports', default=False)
+    can_manage_courses = BooleanField('Can Manage Courses', default=False)
+    can_manage_settings = BooleanField('Can Manage Settings', default=False)
     
-    # Default Settings
-    default_currency = SelectField('Default Currency', choices=[
-        ('AED', 'AED (UAE Dirham)'),
-        ('USD', 'USD (US Dollar)'),
-        ('EUR', 'EUR (Euro)'),
-        ('GBP', 'GBP (British Pound)'),
-        ('SAR', 'SAR (Saudi Riyal)')
-    ], default='AED')
-    default_country_code = SelectField('Default Country Code', choices=[
-        ('+971', '+971 (UAE)'),
-        ('+91', '+91 (India)'),
-        ('+1', '+1 (US/Canada)'),
-        ('+44', '+44 (UK)'),
-        ('+92', '+92 (Pakistan)'),
-        ('+94', '+94 (Sri Lanka)'),
-        ('+880', '+880 (Bangladesh)'),
-        ('+966', '+966 (Saudi Arabia)'),
-        ('+965', '+965 (Kuwait)'),
-        ('+973', '+973 (Bahrain)'),
-        ('+974', '+974 (Qatar)'),
-        ('+968', '+968 (Oman)')
-    ], default='+971')
+    def validate_confirm_password(self, field):
+        if self.password.data and field.data != self.password.data:
+            raise ValidationError('Passwords must match.')
+
+class BulkAssignForm(FlaskForm):
+    selected_leads = HiddenField('Selected Leads')
+    assigned_to = SelectField('Assign to Consultant', coerce=int, validators=[DataRequired()])
+    
+    def __init__(self, *args, **kwargs):
+        super(BulkAssignForm, self).__init__(*args, **kwargs)
+        from models import User
+        consultants = User.query.filter_by(role='consultant', active=True).all()
+        self.assigned_to.choices = [(u.id, u.username) for u in consultants]
 
 
 # Payment Forms
@@ -280,23 +303,105 @@ class PaymentLinkForm(FlaskForm):
     expires_in_days = IntegerField("Expires in (days)", validators=[DataRequired(), NumberRange(min=1, max=365)], default=7)
 
 # User Management Forms
-class UserForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=64)])
+class SystemSettingsForm(FlaskForm):
+    # Company Information
+    company_name = StringField('Company Name', validators=[Optional(), Length(max=200)])
+    company_email = StringField('Company Email', validators=[Optional(), Email(), Length(max=120)])
+    company_phone = StringField('Company Phone', validators=[Optional(), Length(max=20)])
+    company_address = TextAreaField('Company Address', validators=[Optional()])
+    
+    # Email Configuration
+    smtp_server = StringField('SMTP Server', validators=[Optional(), Length(max=100)])
+    smtp_port = IntegerField('SMTP Port', validators=[Optional(), NumberRange(min=1, max=65535)], default=587)
+    smtp_username = StringField('SMTP Username', validators=[Optional(), Email(), Length(max=120)])
+    smtp_password = PasswordField('SMTP Password', validators=[Optional()])
+    smtp_use_tls = BooleanField('Use TLS', default=True)
+    
+    # Default Settings
+    default_currency = SelectField('Default Currency', choices=[
+        ('AED', 'AED'), ('USD', 'USD'), ('EUR', 'EUR'), ('SAR', 'SAR')
+    ], default='AED')
+    timezone = SelectField('Timezone', choices=[
+        ('UTC', 'UTC'),
+        ('Asia/Dubai', 'Asia/Dubai'),
+        ('America/New_York', 'America/New_York')
+    ], default='Asia/Dubai')
+    leads_per_page = IntegerField('Leads Per Page', validators=[Optional(), NumberRange(min=1, max=100)], default=20)
+    auto_assign_leads = BooleanField('Auto Assign Leads', default=False)
+    enable_email_notifications = BooleanField('Enable Email Notifications', default=True)
+    session_timeout = IntegerField('Session Timeout (minutes)', validators=[Optional(), NumberRange(min=5, max=1440)], default=60)
+    auto_followup_days = IntegerField('Auto Follow-up Days', validators=[DataRequired(), NumberRange(min=1, max=30)])
+    email_notifications = BooleanField('Enable Email Notifications', default=True)
+    sms_notifications = BooleanField('Enable SMS Notifications', default=False)
+
+# Student and Trainer Management Forms
+class LegacyStudentForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)])
     email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
-    role = SelectField('Role', choices=[
-        ('consultant', 'Consultant'),
-        ('superadmin', 'Super Admin'),
-        ('admin', 'Admin')
-    ], default='consultant', validators=[DataRequired()])
+    phone = StringField('Phone', validators=[DataRequired(), Length(max=20)])
+    whatsapp = StringField('WhatsApp', validators=[Optional(), Length(max=20)])
+    course_id = SelectField('Course', coerce=int, validators=[Optional()])
+    enrollment_date = DateField('Enrollment Date', validators=[Optional()], default=lambda: date.today())
+    payment_status = SelectField('Payment Status', choices=[
+        ('Pending', 'Pending'),
+        ('Partial', 'Partial'),
+        ('Paid', 'Paid')
+    ], default='Pending', validators=[DataRequired()])
+    notes = TextAreaField('Notes', validators=[Optional()])
     is_active = BooleanField('Active', default=True)
     
-    # Permissions for superadmin role
-    can_view_all_leads = BooleanField('Can View All Leads', default=False)
-    can_manage_users = BooleanField('Can Manage Users', default=False)
-    can_view_reports = BooleanField('Can View Reports', default=False)
-    can_manage_courses = BooleanField('Can Manage Courses', default=False)
-    can_manage_settings = BooleanField('Can Manage Settings', default=False)
+    def __init__(self, *args, **kwargs):
+        super(StudentForm, self).__init__(*args, **kwargs)
+        from models import Course
+        courses = Course.query.filter_by(is_active=True).all()
+        self.course_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in courses]
+
+class TrainerForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)])
+    email = StringField('Email', validators=[DataRequired(), Email(), Length(max=120)])
+    phone = StringField('Phone', validators=[DataRequired(), Length(max=20)])
+    specialization = StringField('Specialization', validators=[Optional(), Length(max=200)])
+    hourly_rate = FloatField('Hourly Rate', validators=[Optional(), NumberRange(min=0)])
+    bio = TextAreaField('Bio', validators=[Optional()])
+    is_active = BooleanField('Active', default=True)
+    
+    # Availability fields
+    monday_start = TimeField('Monday Start', validators=[Optional()])
+    monday_end = TimeField('Monday End', validators=[Optional()])
+    tuesday_start = TimeField('Tuesday Start', validators=[Optional()])
+    tuesday_end = TimeField('Tuesday End', validators=[Optional()])
+    wednesday_start = TimeField('Wednesday Start', validators=[Optional()])
+    wednesday_end = TimeField('Wednesday End', validators=[Optional()])
+    thursday_start = TimeField('Thursday Start', validators=[Optional()])
+    thursday_end = TimeField('Thursday End', validators=[Optional()])
+    friday_start = TimeField('Friday Start', validators=[Optional()])
+    friday_end = TimeField('Friday End', validators=[Optional()])
+    saturday_start = TimeField('Saturday Start', validators=[Optional()])
+    saturday_end = TimeField('Saturday End', validators=[Optional()])
+    sunday_start = TimeField('Sunday Start', validators=[Optional()])
+    sunday_end = TimeField('Sunday End', validators=[Optional()])
+
+class ScheduleForm(FlaskForm):
+    trainer_id = SelectField('Trainer', coerce=int, validators=[DataRequired()])
+    course_id = SelectField('Course', coerce=int, validators=[DataRequired()])
+    start_time = TimeField('Start Time', validators=[DataRequired()])
+    end_time = TimeField('End Time', validators=[DataRequired()])
+    date = DateField('Date', validators=[DataRequired()])
+    student_ids = SelectMultipleField('Students', coerce=int, validators=[Optional()])
+    notes = TextAreaField('Notes', validators=[Optional()])
+    
+    def __init__(self, *args, **kwargs):
+        super(ScheduleForm, self).__init__(*args, **kwargs)
+        from models import Trainer, Course, Student
+        
+        trainers = Trainer.query.filter_by(is_active=True).all()
+        self.trainer_id.choices = [(t.id, t.name) for t in trainers]
+        
+        courses = Course.query.filter_by(is_active=True).all()
+        self.course_id.choices = [(c.id, c.name) for c in courses]
+        
+        students = Student.query.filter_by(is_active=True).all()
+        self.student_ids.choices = [(s.id, s.name) for s in students]
 
 class EditUserForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=64)])

@@ -19,71 +19,54 @@
         </div>
     </div>
 
-    <!-- Weekly Schedule View -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h6 class="m-0 font-weight-bold text-primary">Weekly Schedule</h6>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered schedule-table">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 100px;">Time</th>
-                            <th>Monday</th>
-                            <th>Tuesday</th>
-                            <th>Wednesday</th>
-                            <th>Thursday</th>
-                            <th>Friday</th>
-                            <th>Saturday</th>
-                            <th>Sunday</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Generate time slots from 8:00 AM to 10:00 PM in 30-minute intervals -->
-                        {% set time_slots = [] %}
-                        {% for hour in range(8, 22) %}
-                            {% for minute in [0, 30] %}
-                                {% set time_str = "%02d:%02d"|format(hour, minute) %}
-                                {% set _ = time_slots.append(time_str) %}
-                            {% endfor %}
+<!-- Weekly Schedule View -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6 class="m-0 font-weight-bold text-primary">Weekly Schedule</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered schedule-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 100px;">Time</th>
+                        {% for day in week_days %}
+                            <th>{{ day.strftime('%A') }}</th>
                         {% endfor %}
-                        
-                        {% for time_slot in time_slots %}
-                        <tr>
-                            <td class="time-slot">{{ time_slot }}</td>
-                            {% for day_offset in range(7) %}
-                                {% set current_day = start_of_week + timedelta(days=day_offset) %}
-                                {% set day_classes = current_week_classes|selectattr('class_date', 'equalto', current_day)|list %}
-                                {% set slot_classes = day_classes|selectattr('start_time', 'equalto', time_slot|strptime('%H:%M'))|list %}
-                                
-                                <td class="schedule-cell" data-date="{{ current_day }}" data-time="{{ time_slot }}">
-                                    {% if slot_classes %}
-                                        {% for class_item in slot_classes %}
-                                        <div class="class-block bg-primary text-white p-2 mb-1 rounded">
-                                            <div class="fw-bold">{{ class_item.course.name }}</div>
-                                            <div class="small">
-                                                {{ class_item.start_time.strftime('%H:%M') }} - {{ class_item.end_time.strftime('%H:%M') }}
-                                            </div>
-                                            <div class="small">
-                                                {{ class_item.students|length }} student(s)
-                                            </div>
-                                            {% if class_item.location %}
-                                                <div class="small">📍 {{ class_item.location }}</div>
-                                            {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for time_slot in time_slots %}
+                    <tr>
+                        <td class="time-slot">{{ time_slot }}</td>
+                        {% for day in week_days %}
+                            {% set slot_classes = schedule_grid[day][time_slot] %}
+                            <td class="schedule-cell" data-date="{{ day }}" data-time="{{ time_slot }}">
+                                {% if slot_classes %}
+                                    {% for class_item in slot_classes %}
+                                    <div class="class-block bg-primary text-white p-2 mb-1 rounded">
+                                        <div class="fw-bold">{{ class_item.course.name }}</div>
+                                        <div class="small">
+                                            {{ class_item.start_time.strftime('%H:%M') }} - {{ class_item.end_time.strftime('%H:%M') }}
                                         </div>
-                                        {% endfor %}
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
-                        </tr>
+                                        <div class="small">
+                                            {{ class_item.students|length }} student(s)
+                                        </div>
+                                        {% if class_item.location %}
+                                            <div class="small">📍 {{ class_item.location }}</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-
+</div>
     <!-- Current Week Classes List -->
     <div class="card">
         <div class="card-header">
@@ -287,12 +270,10 @@
 </style>
 
 <script>
-// Set today's date as default for class scheduling
 document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('#class_date').value = today;
     
-    // Set default start time to next hour
     const now = new Date();
     const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
     const timeString = nextHour.toTimeString().substr(0, 5);
@@ -300,33 +281,27 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function viewClass(classId) {
-    // Implement class viewing functionality
     alert('View class details for ID: ' + classId);
 }
 
 function editClass(classId) {
-    // Implement class editing functionality
     alert('Edit class functionality will be implemented. Class ID: ' + classId);
 }
 
 function cancelClass(classId) {
     if (confirm('Are you sure you want to cancel this class?')) {
-        // Implement class cancellation
         alert('Cancel class functionality will be implemented. Class ID: ' + classId);
     }
 }
 
-// Handle schedule cell clicks for quick class addition
 document.querySelectorAll('.schedule-cell').forEach(cell => {
     cell.addEventListener('click', function() {
         const date = this.dataset.date;
         const time = this.dataset.time;
         
-        // Pre-fill modal with clicked time slot
         document.querySelector('#class_date').value = date;
         document.querySelector('#start_time').value = time;
         
-        // Show modal
         new bootstrap.Modal(document.getElementById('addClassModal')).show();
     });
 });

@@ -8,8 +8,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), default='consultant')  # admin, superadmin, consultant
-    is_active = db.Column(db.Boolean, default=True)
+    role = db.Column(db.String(20), default='consultant')  # super_admin, admin, consultant
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
@@ -27,10 +27,10 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
     
     def is_admin(self):
-        return self.role == 'admin'
+        return self.role in ['admin', 'super_admin']
     
-    def is_superadmin(self):
-        return self.role == 'superadmin'
+    def is_super_admin(self):
+        return self.role == 'super_admin'
     
     def is_consultant(self):
         return self.role == 'consultant'
@@ -46,6 +46,8 @@ class Lead(db.Model):
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=False)
     whatsapp = db.Column(db.String(20))
+    assigned_to = db.Column(db.Integer, db.ForeignKey('user.id'))
+    added_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     email = db.Column(db.String(120))
     course_interest_id = db.Column(db.Integer, db.ForeignKey('course.id'))
     lead_source = db.Column(db.String(50))
@@ -62,17 +64,27 @@ class Lead(db.Model):
     
     # Relationships
     course_interest = db.relationship('Course', backref='interested_leads')
-    created_by = db.relationship('User', backref='created_leads')
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_leads')
+    assigned_consultant = db.relationship('User', foreign_keys=[assigned_to], backref='assigned_leads')
+    added_by_user = db.relationship('User', foreign_keys=[added_by], backref='added_leads')
     interactions = db.relationship('LeadInteraction', backref='lead', lazy='dynamic')
     
     @classmethod
-    def check_duplicate(cls, phone, email=None, exclude_id=None):
-        """Check if a lead with same phone or email already exists"""
+    def check_duplicate(cls, phone, whatsapp=None, exclude_id=None):
+        """Check if a lead with same phone or WhatsApp already exists"""
         query = cls.query
         if exclude_id:
             query = query.filter(cls.id != exclude_id)
         
-        # Check for phone duplicates
+        # Check for phone or WhatsApp duplicates
+        conditions = [cls.phone == phone]
+        if whatsapp:
+            conditions.extend([cls.whatsapp == whatsapp, cls.phone == whatsapp, cls.whatsapp == phone])
+        
+        duplicate_lead = query.filter(db.or_(*conditions)).first()
+        if duplicate_lead:
+            return duplicate_lead
+        return None
         phone_exists = query.filter(cls.phone == phone).first()
         if phone_exists:
             return phone_exists
@@ -293,8 +305,27 @@ class Trainer(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     email = db.Column(db.String(120), nullable=False, unique=True)
     specialization = db.Column(db.String(200))
+    hourly_rate = db.Column(db.Float)
+    bio = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Weekly availability
+    monday_start = db.Column(db.Time)
+    monday_end = db.Column(db.Time)
+    tuesday_start = db.Column(db.Time)
+    tuesday_end = db.Column(db.Time)
+    wednesday_start = db.Column(db.Time)
+    wednesday_end = db.Column(db.Time)
+    thursday_start = db.Column(db.Time)
+    thursday_end = db.Column(db.Time)
+    friday_start = db.Column(db.Time)
+    friday_end = db.Column(db.Time)
+    saturday_start = db.Column(db.Time)
+    saturday_end = db.Column(db.Time)
+    sunday_start = db.Column(db.Time)
+    sunday_end = db.Column(db.Time)
     
     # Relationships
     trainer_courses = db.relationship('TrainerCourse', backref='trainer', cascade='all, delete-orphan')
@@ -302,7 +333,15 @@ class Trainer(db.Model):
     
     @property
     def courses(self):
-        return [tc.course for tc in self.trainer_courses.all()]
+        return [tc.course for tc in self.trainer_courses]
+    
+    def get_availability_for_day(self, day_name):
+        """Get availability for a specific day"""
+        start_attr = f"{day_name.lower()}_start"
+        end_attr = f"{day_name.lower()}_end"
+        start_time = getattr(self, start_attr)
+        end_time = getattr(self, end_attr)
+        return (start_time, end_time) if start_time and end_time else None
 
 class TrainerCourse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -417,7 +456,7 @@ class Setting(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    __table_args__ = (db.Index('idx_key_value', 'key', db.text('value(150)')),)
+    # __table_args__ = (db.Index('idx_key_value', 'key', db.text('value(150)')),)  # Commented out for SQLite compatibility
     
     @classmethod
     def get_by_key(cls, key):
@@ -433,5 +472,13 @@ class Setting(db.Model):
         settings = cls.get_by_key(key)
         return [(s.value, s.display_name) for s in settings]
     
+    @classmethod
+    def get_system_settings(cls):
+        """Get all system settings as a dictionary"""
+        settings = cls.query.filter(cls.key.like('system_%')).all()
+        return {s.key: s.value for s in settings}
+    
     def __repr__(self):
         return f'<Setting {self.key}: {self.value}>'
+
+

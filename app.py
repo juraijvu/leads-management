@@ -7,6 +7,7 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from datetime import time
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -70,3 +71,11 @@ app = create_app()
 def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
+
+def format_time(value):
+    """Format a time object or string to HH:MM"""
+    if isinstance(value, time):
+        return value.strftime('%H:%M')
+    return value
+
+app.jinja_env.filters['format_time'] = format_time

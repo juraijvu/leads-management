@@ -8,8 +8,8 @@ import json
 from app import db
 from models import *
 from forms import *
+import logging
 from utils import create_payment_link, verify_payment_status
-import logging  # Add logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -74,10 +74,10 @@ def get_lead(id):
     lead = Lead.query.get_or_404(id)
     
     # ROLE-BASED ACCESS CONTROL
-    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
+    if not (current_user.is_admin() or lead.assigned_to == current_user.id):
         return jsonify({
             'success': False,
-            'message': 'You can only view your own leads!'
+            'message': 'You can only view leads assigned to you!'
         }), 403
     
     return jsonify({
@@ -101,8 +101,8 @@ def lead_detail(lead_id):
     lead = Lead.query.get_or_404(lead_id)
     
     # ROLE-BASED ACCESS CONTROL
-    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
-        flash('You can only view your own leads!', 'error')
+    if not (current_user.is_admin() or lead.assigned_to == current_user.id):
+        flash('You can only view leads assigned to you!', 'error')
         return redirect(url_for('main.leads'))
     
     # Get all interactions for this lead
@@ -178,10 +178,10 @@ def update_quote_amount(id):
     quote = LeadQuote.query.get_or_404(id)
     
     # ROLE-BASED ACCESS CONTROL
-    if not (current_user.is_admin() or current_user.can_view_all_leads or quote.lead.created_by_id == current_user.id):
+    if not (current_user.is_admin() or quote.lead.assigned_to == current_user.id):
         return jsonify({
             'success': False,
-            'message': 'You can only edit quotes for your own leads!'
+            'message': 'You can only edit quotes for leads assigned to you!'
         }), 403
 
     quoted_amount = request.form.get('quoted_amount', type=float)
@@ -254,7 +254,6 @@ def logout():
 @login_required
 def leads():
     lead_form = LeadForm()
-    lead_form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     
     meeting_form = MeetingForm()
     meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted').all()]
@@ -267,7 +266,6 @@ def leads():
     
     # ROLE-BASED ACCESS CONTROL FOR LEADS
     if current_user.is_admin() or current_user.can_view_all_leads:
-        # Admin sees all leads
         query = Lead.query
         if status_filter:
             query = query.filter_by(status=status_filter)
@@ -282,8 +280,19 @@ def leads():
         if course_filter:
             query = query.filter_by(course_interest_id=course_filter)
     else:
-        # Consultants see only their own leads
-        query = Lead.get_user_leads(current_user.id, status_filter, search, course_filter)
+        query = Lead.query.filter_by(assigned_to=current_user.id)
+        if status_filter:
+            query = query.filter_by(status=status_filter)
+        if search:
+            query = query.filter(
+                db.or_(
+                    Lead.name.ilike(f'%{search}%'),
+                    Lead.phone.ilike(f'%{search}%'),
+                    Lead.email.ilike(f'%{search}%')
+                )
+            )
+        if course_filter:
+            query = query.filter_by(course_interest_id=course_filter)
     
     leads_pagination = query.order_by(desc(Lead.created_at)).paginate(
         page=page, per_page=20, error_out=False
@@ -319,33 +328,36 @@ def edit_lead(id):
     lead = Lead.query.get_or_404(id)
     
     # ROLE-BASED ACCESS CONTROL
-    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
+    if not (current_user.is_admin() or lead.assigned_to == current_user.id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({
                 'success': False,
-                'errors': ['You can only edit your own leads!']
+                'errors': ['You can only edit leads assigned to you!']
             }), 403
-        flash('You can only edit your own leads!', 'error')
+        flash('You can only edit leads assigned to you!', 'error')
         return redirect(url_for('main.leads'))
     
     form = LeadForm(obj=lead)
     form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
     
     if form.validate_on_submit():
-        # DUPLICATE DETECTION - Check across all users but exclude current lead
-        existing_lead = Lead.check_duplicate(form.phone.data, form.email.data, exclude_id=lead.id)
+        # DUPLICATE DETECTION - Check phone/WhatsApp across all users but exclude current lead
+        existing_lead = Lead.check_duplicate(form.phone.data, form.whatsapp.data, exclude_id=lead.id)
         if existing_lead:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({
                     'success': False,
-                    'errors': [f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})']
+                    'errors': [f'Duplicate lead detected based on phone or WhatsApp number! Lead exists (Added by: {existing_lead.added_by_user.username if existing_lead.added_by_user else "Unknown"})']
                 }), 400
-            flash(f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})', 'warning')
+            flash(f'Duplicate lead detected based on phone or WhatsApp number! Lead exists (Added by: {existing_lead.added_by_user.username if existing_lead.added_by_user else "Unknown"})', 'warning')
             return render_template('edit_lead.html', lead_form=form, lead=lead)
         
         try:
             form.populate_obj(lead)
             lead.course_interest_id = form.course_interest_id.data if form.course_interest_id.data != 0 else None
+            # Handle assignment change by admin
+            if current_user.is_admin() and form.assigned_to.data != 0:
+                lead.assigned_to = form.assigned_to.data
             db.session.commit()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({
@@ -382,6 +394,111 @@ def edit_lead(id):
     meeting_form.student_id.choices = [(0, 'Select Student')] + [(s.id, s.name) for s in Student.query.all()]
     
     return render_template('edit_lead.html', lead_form=form, lead=lead)
+
+@main.route('/leads/add', methods=['POST'])
+@login_required
+def add_lead():
+    form = LeadForm()
+    # Set choices for course_interest_id
+    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
+    
+    if form.validate_on_submit():
+        # DUPLICATE DETECTION - Check phone/WhatsApp across all users
+        existing_lead = Lead.check_duplicate(form.phone.data, form.whatsapp.data)
+        if existing_lead:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'errors': [f'Duplicate lead detected based on phone or WhatsApp number! Lead exists (Added by: {existing_lead.added_by_user.username if existing_lead.added_by_user else "Unknown"})']
+                }), 400
+            flash(f'Duplicate lead detected based on phone or WhatsApp number! Lead exists (Added by: {existing_lead.added_by_user.username if existing_lead.added_by_user else "Unknown"})', 'warning')
+            return redirect(url_for('main.leads'))
+        
+        try:
+            # Create new lead
+            lead = Lead()
+            form.populate_obj(lead)
+            lead.course_interest_id = form.course_interest_id.data if form.course_interest_id.data != 0 else None
+            lead.added_by = current_user.id
+            
+            # Handle assignment
+            if current_user.is_admin() and form.assigned_to.data != 0:
+                lead.assigned_to = form.assigned_to.data
+            else:
+                # Consultants create leads assigned to themselves
+                lead.assigned_to = current_user.id
+            
+            db.session.add(lead)
+            db.session.commit()
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': True,
+                    'message': 'Lead created successfully!',
+                    'lead_id': lead.id
+                })
+            flash('Lead created successfully!', 'success')
+            return redirect(url_for('main.lead_detail', lead_id=lead.id))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error creating lead: {str(e)}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({
+                    'success': False,
+                    'errors': ['An error occurred while creating the lead. Please try again.']
+                }), 500
+            flash('An error occurred while creating the lead. Please try again.', 'error')
+            return redirect(url_for('main.leads'))
+    
+    # Handle form validation errors for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        errors = []
+        for field, field_errors in form.errors.items():
+            for error in field_errors:
+                errors.append(f"{field}: {error}")
+        return jsonify({
+            'success': False,
+            'errors': errors or ['Invalid form data. Please check your inputs.']
+        }), 400
+    
+    flash('Please correct the form errors.', 'error')
+    return redirect(url_for('main.leads'))
+
+@main.route('/leads/bulk-assign', methods=['POST'])
+@login_required
+def bulk_assign_leads():
+    # Only admins can perform bulk assignments
+    if not current_user.is_admin():
+        flash('Access denied. Only admins can perform bulk assignments.', 'error')
+        return redirect(url_for('main.leads'))
+    
+    form = BulkAssignForm()
+    if form.validate_on_submit():
+        try:
+            lead_ids = form.selected_leads.data.split(',') if form.selected_leads.data else []
+            if not lead_ids:
+                flash('No leads selected for assignment.', 'warning')
+                return redirect(url_for('main.leads'))
+            
+            # Update selected leads
+            updated_count = 0
+            for lead_id in lead_ids:
+                if lead_id.strip():
+                    lead = Lead.query.get(int(lead_id.strip()))
+                    if lead:
+                        lead.assigned_to = form.assigned_to.data
+                        updated_count += 1
+            
+            db.session.commit()
+            flash(f'Successfully assigned {updated_count} leads to the selected consultant.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error in bulk assignment: {str(e)}")
+            flash('An error occurred during bulk assignment. Please try again.', 'error')
+    else:
+        flash('Invalid form data. Please try again.', 'error')
+    
+    return redirect(url_for('main.leads'))
 
 @main.route('/leads/<int:id>/convert', methods=['POST'])
 @login_required
@@ -943,9 +1060,9 @@ def reports():
     ).group_by(Course.name).all()
 
     monthly_trends = db.session.query(
-        func.to_char(Lead.created_at, 'YYYY-MM').label('month'),
+        func.date_format(Lead.created_at, '%Y-%m').label('month'),
         func.count(Lead.id).label('count')
-    ).group_by(func.to_char(Lead.created_at, 'YYYY-MM')).limit(12).all()
+    ).group_by(func.date_format(Lead.created_at, '%Y-%m')).order_by(func.date_format(Lead.created_at, '%Y-%m').desc()).limit(12).all()
 
     return render_template('reports.html',
                          monthly_leads=monthly_leads,
@@ -988,12 +1105,12 @@ def settings():
     system_form.default_currency.data = system_settings.get('default_currency', 'USD')
     system_form.timezone.data = system_settings.get('timezone', 'UTC')
     
-    try:
-        system_form.leads_per_page.data = int(system_settings.get('leads_per_page', '20'))
-        system_form.auto_followup_days.data = int(system_settings.get('auto_followup_days', '3'))
-    except (ValueError, TypeError):
-        system_form.leads_per_page.data = 20
-        system_form.auto_followup_days.data = 3
+    # Handle numeric fields with validation
+    leads_per_page = system_settings.get('leads_per_page', '20')
+    system_form.leads_per_page.data = int(leads_per_page) if leads_per_page and leads_per_page.isdigit() else 20
+    
+    auto_followup_days = system_settings.get('auto_followup_days', '3')
+    system_form.auto_followup_days.data = int(auto_followup_days) if auto_followup_days and auto_followup_days.isdigit() else 3
     
     system_form.email_notifications.data = system_settings.get('email_notifications', 'true') == 'true'
     system_form.sms_notifications.data = system_settings.get('sms_notifications', 'false') == 'true'
@@ -1295,53 +1412,7 @@ def add_lead_interaction(id):
     
     return redirect(url_for("main.lead_detail", lead_id=id))
 
-@main.route('/leads/add', methods=['POST'])
-@login_required
-def add_lead():
-    form = LeadForm()
-    form.course_interest_id.choices = [(0, 'Select Course')] + [(c.id, c.name) for c in Course.query.filter_by(is_active=True).all()]
-    
-    if form.validate_on_submit():
-        existing_lead = Lead.check_duplicate(form.phone.data, form.email.data)
-        if existing_lead:
-            return jsonify({
-                'success': False,
-                'errors': [f'Duplicate lead detected! A lead with this phone/email already exists (Created by: {existing_lead.created_by.username})']
-            }), 400
-        
-        try:
-            lead = Lead(
-                name=form.name.data,
-                phone=form.phone.data,
-                email=form.email.data,
-                whatsapp=form.whatsapp.data,
-                course_interest_id=form.course_interest_id.data if form.course_interest_id.data != 0 else None,
-                lead_source=form.lead_source.data,
-                comments=form.comments.data,
-                created_by_id=current_user.id
-            )
-            db.session.add(lead)
-            db.session.commit()
-            return jsonify({
-                'success': True,
-                'message': 'Lead added successfully!'
-            })
-        except Exception as e:
-            db.session.rollback()
-            logging.error(f"Error adding lead: {str(e)}")
-            return jsonify({
-                'success': False,
-                'errors': ['An error occurred while adding the lead. Please try again.']
-            }), 500
-    
-    errors = []
-    for field, field_errors in form.errors.items():
-        for error in field_errors:
-            errors.append(f"{field}: {error}")
-    return jsonify({
-        'success': False,
-        'errors': errors or ['Invalid form data. Please check your inputs.']
-    }), 400
+
 
 @main.route("/leads/<int:id>/update_followup", methods=["POST"])
 @login_required
@@ -1495,16 +1566,35 @@ def add_trainer():
 def trainer_schedule(id):
     trainer = Trainer.query.get_or_404(id)
     
-    from datetime import datetime, timedelta
     today = datetime.now().date()
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
     
+    # Calculate list of days for the week
+    week_days = [start_of_week + timedelta(days=i) for i in range(7)]
+    
     current_week_classes = ClassSchedule.query.filter(
         ClassSchedule.trainer_id == id,
         ClassSchedule.class_date >= start_of_week,
-        ClassSchedule.class_date <= end_of_week
+        ClassSchedule.class_date <= end_of_week,
+        ClassSchedule.is_cancelled == False
     ).order_by(ClassSchedule.class_date, ClassSchedule.start_time).all()
+    
+    # Generate time slots
+    time_slots = []
+    for hour in range(8, 22):
+        for minute in [0, 30]:
+            time_slots.append(f"{hour:02d}:{minute:02d}")
+    
+    # Group classes by date and time (for efficiency)
+    schedule_grid = {}
+    for day in week_days:
+        schedule_grid[day] = {ts: [] for ts in time_slots}
+    
+    for class_item in current_week_classes:
+        time_str = class_item.start_time.strftime('%H:%M')
+        if time_str in schedule_grid[class_item.class_date]:
+            schedule_grid[class_item.class_date][time_str].append(class_item)
     
     schedule_form = ClassScheduleForm()
     schedule_form.trainer_id.choices = [(trainer.id, trainer.name)]
@@ -1512,12 +1602,18 @@ def trainer_schedule(id):
     schedule_form.course_id.choices = [(c.id, c.name) for c in trainer.courses]
     schedule_form.student_ids.choices = [(s.id, s.name) for s in Student.query.filter_by(status="Active").all()]
     
+    if not current_week_classes:
+        flash("No classes scheduled for this week.", "info")
+    
     return render_template("trainer_schedule.html",
-                         trainer=trainer,
-                         current_week_classes=current_week_classes,
-                         schedule_form=schedule_form,
-                         start_of_week=start_of_week,
-                         end_of_week=end_of_week)
+                          trainer=trainer,
+                          schedule_grid=schedule_grid,
+                          time_slots=time_slots,
+                          current_week_classes=current_week_classes,
+                          schedule_form=schedule_form,
+                          start_of_week=start_of_week,
+                          end_of_week=end_of_week,
+                          week_days=week_days)
 
 @main.route("/schedule/add_class", methods=["POST"])
 @login_required
@@ -1558,6 +1654,94 @@ def add_class_schedule():
             for error in errors:
                 flash(f"{field}: {error}", "error")
         return redirect(url_for("main.trainers"))
+
+# ENHANCED STUDENT MANAGEMENT ROUTES
+
+@main.route('/students/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_student_record(id):
+    if not current_user.is_admin():
+        flash('Access denied. Only admins can delete students.', 'error')
+        return redirect(url_for('main.students'))
+    
+    student = Student.query.get_or_404(id)
+    try:
+        db.session.delete(student)
+        db.session.commit()
+        flash('Student deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting student: {str(e)}")
+        flash('An error occurred while deleting the student. Please try again.', 'error')
+    
+    return redirect(url_for('main.students'))
+
+@main.route('/students/<int:id>/overview')
+@login_required
+def student_overview(id):
+    student = Student.query.get_or_404(id)
+    return render_template('student_detail.html', student=student)
+
+# ENHANCED TRAINER MANAGEMENT ROUTES
+@main.route('/trainers/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_trainer(id):
+    if not current_user.is_admin():
+        flash('Access denied. Only admins can edit trainers.', 'error')
+        return redirect(url_for('main.trainers'))
+    
+    trainer = Trainer.query.get_or_404(id)
+    form = TrainerForm(obj=trainer)
+    
+    if request.method == 'GET':
+        return render_template('edit_trainer.html', form=form, trainer=trainer)
+    
+    if form.validate_on_submit():
+        try:
+            form.populate_obj(trainer)
+            db.session.commit()
+            flash('Trainer updated successfully!', 'success')
+            return redirect(url_for('main.trainers'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating trainer: {str(e)}")
+            flash('An error occurred while updating the trainer. Please try again.', 'error')
+    
+    return render_template('edit_trainer.html', form=form, trainer=trainer)
+
+@main.route('/trainers/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_trainer(id):
+    if not current_user.is_admin():
+        flash('Access denied. Only admins can delete trainers.', 'error')
+        return redirect(url_for('main.trainers'))
+    
+    trainer = Trainer.query.get_or_404(id)
+    try:
+        db.session.delete(trainer)
+        db.session.commit()
+        flash('Trainer deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error deleting trainer: {str(e)}")
+        flash('An error occurred while deleting the trainer. Please try again.', 'error')
+    
+    return redirect(url_for('main.trainers'))
+
+@main.route('/trainers/<int:id>')
+@login_required
+def trainer_detail(id):
+    trainer = Trainer.query.get_or_404(id)
+    
+    # Get upcoming schedules
+    from datetime import datetime
+    upcoming_schedules = ClassSchedule.query.filter(
+        ClassSchedule.trainer_id == id,
+        ClassSchedule.class_date >= datetime.now().date(),
+        ClassSchedule.is_cancelled == False
+    ).order_by(ClassSchedule.class_date, ClassSchedule.start_time).limit(5).all()
+    
+    return render_template('trainer_detail.html', trainer=trainer, upcoming_schedules=upcoming_schedules)
 
 @main.route("/schedule/weekly")
 @login_required
