@@ -589,7 +589,7 @@ def pipeline():
         if current_user.is_admin() or current_user.can_view_all_leads:
             leads_by_status[status] = Lead.query.filter_by(status=status).all()
         else:
-            leads_by_status[status] = Lead.query.filter_by(status=status, created_by_id=current_user.id).all()
+            leads_by_status[status] = Lead.query.filter_by(status=status, added_by=current_user.id).all()
     
     return render_template('pipeline.html',
                          pipeline_data=pipeline_dict,
