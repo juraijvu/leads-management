@@ -2062,7 +2062,7 @@ def add_user():
         new_user.email = form.email.data
         new_user.password_hash = generate_password_hash(form.password.data)
         new_user.role = form.role.data
-        new_user.is_active = form.is_active.data
+        new_user.active = form.active.data
         new_user.created_by_id = current_user.id
         
         # Set permissions for superadmin role
@@ -2114,7 +2114,7 @@ def edit_user(id):
         user.username = form.username.data
         user.email = form.email.data
         user.role = form.role.data
-        user.is_active = form.is_active.data
+        user.active = form.active.data
         
         # Update permissions for superadmin role
         if form.role.data == 'superadmin':
@@ -2156,10 +2156,10 @@ def toggle_user_status(id):
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Cannot deactivate your own account'}), 400
     
-    user.is_active = not user.is_active
+    user.active = not user.active
     db.session.commit()
     
-    status = 'activated' if user.is_active else 'deactivated'
+    status = 'activated' if user.active else 'deactivated'
     return jsonify({'success': True, 'message': f'User {status} successfully'})
 
 @main.route('/users/<int:id>/reset-password', methods=['POST'])

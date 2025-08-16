@@ -411,7 +411,7 @@ class EditUserForm(FlaskForm):
         ('superadmin', 'Super Admin'),
         ('admin', 'Admin')
     ], validators=[DataRequired()])
-    is_active = BooleanField('Active', default=True)
+    active = BooleanField('Active', default=True)
     
     # Permissions for superadmin role
     can_view_all_leads = BooleanField('Can View All Leads', default=False)
