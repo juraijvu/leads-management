@@ -627,7 +627,7 @@ def meetings():
         
         # Consultants can only schedule meetings for their own leads
         meeting_form = MeetingForm()
-        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted', Lead.created_by_id == current_user.id).all()]
+        meeting_form.lead_id.choices = [(0, 'Select Lead')] + [(l.id, l.name) for l in Lead.query.filter(Lead.status != 'Converted', Lead.added_by == current_user.id).all()]
     
     meetings_data = [
         {
