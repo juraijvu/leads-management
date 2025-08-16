@@ -41,9 +41,9 @@ def dashboard():
         }
     else:
         # USER SPECIFIC DATA for consultants
-        total_leads = Lead.query.filter_by(created_by_id=current_user.id).count()
-        recent_leads = Lead.query.filter_by(created_by_id=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
-        today_followups = Lead.query.filter_by(created_by_id=current_user.id).filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
+        total_leads = Lead.query.filter_by(added_by=current_user.id).count()
+        recent_leads = Lead.query.filter_by(added_by=current_user.id).order_by(desc(Lead.created_at)).limit(5).all()
+        today_followups = Lead.query.filter_by(added_by=current_user.id).filter(Lead.next_followup_date == date.today()).order_by(Lead.followup_time).all()
         pipeline_data = Lead.get_user_pipeline_data(current_user.id)
         
     total_students = Student.query.count()  # Students can be common
