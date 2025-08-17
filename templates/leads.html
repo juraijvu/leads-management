@@ -138,7 +138,7 @@
                     </td>
                     <td>
                         {% if lead.quoted_amount and lead.quoted_amount > 0 %}
-                            <span class="fw-bold text-success">${{ "{:,.2f}".format(lead.quoted_amount) }}</span>
+                            <span class="fw-bold text-success">AED {{ "{:,.2f}".format(lead.quoted_amount) }}</span>
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}
