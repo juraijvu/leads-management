@@ -1420,7 +1420,7 @@ def update_lead_followup(id):
     lead = Lead.query.get_or_404(id)
     
     # ROLE-BASED ACCESS CONTROL
-    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.created_by_id == current_user.id):
+    if not (current_user.is_admin() or current_user.can_view_all_leads or lead.added_by == current_user.id):
         return jsonify({
             'success': False,
             'message': 'You can only edit your own leads!'
