@@ -100,7 +100,7 @@ class Lead(db.Model):
     @classmethod
     def get_user_pipeline_data(cls, user_id):
         """Get pipeline statistics for a specific user"""
-        user_leads = cls.query.filter_by(created_by_id=user_id)
+        user_leads = cls.query.filter_by(added_by=user_id)
         
         pipeline_data = {}
         statuses = ['New', 'Contacted', 'Interested', 'Quoted', 'Converted', 'Lost']
@@ -114,7 +114,7 @@ class Lead(db.Model):
     @classmethod
     def get_user_leads(cls, user_id, status=None, search=None, course_filter=None):
         """Get leads for a specific user with optional filters"""
-        query = cls.query.filter_by(created_by_id=user_id)
+        query = cls.query.filter_by(added_by=user_id)
         
         if status:
             query = query.filter_by(status=status)
