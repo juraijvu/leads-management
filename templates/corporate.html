@@ -66,7 +66,7 @@
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="dashboard-card">
             <div class="stat-card">
-                <div class="stat-number text-info">${{ "{:,.0f}".format(corporate_trainings | sum(attribute='deal_value') if corporate_trainings else 0) }}</div>
+                <div class="stat-number text-info">AED {{ "{:,.0f}".format(corporate_trainings | sum(attribute='deal_value') if corporate_trainings else 0) }}</div>
                 <div class="stat-label">Total Value</div>
             </div>
         </div>
@@ -99,7 +99,7 @@
                 <h6 class="mb-0">{{ status }}</h6>
                 <div class="d-flex justify-content-between align-items-center mt-2">
                     <small>{{ corporate_trainings | selectattr("status", "equalto", status) | list | length }}</small>
-                    <small>${{ "{:,.0f}".format(corporate_trainings | selectattr("status", "equalto", status) | sum(attribute='deal_value') or 0) }}</small>
+                    <small>AED {{ "{:,.0f}".format(corporate_trainings | selectattr("status", "equalto", status) | sum(attribute='deal_value') or 0) }}</small>
                 </div>
             </div>
             
@@ -142,7 +142,7 @@
                     
                     {% if training.deal_value and training.deal_value > 0 %}
                     <div class="small text-success fw-bold mb-2">
-                        <i class="fas fa-dollar-sign me-1"></i>${{ "{:,.0f}".format(training.deal_value) }}
+                        <i class="fas fa-dollar-sign me-1"></i>AED {{ "{:,.0f}".format(training.deal_value) }}
                     </div>
                     {% endif %}
                     
@@ -225,7 +225,7 @@
                     </td>
                     <td>
                         {% if training.deal_value and training.deal_value > 0 %}
-                        <span class="fw-bold text-success">${{ "{:,.0f}".format(training.deal_value) }}</span>
+                        <span class="fw-bold text-success">AED {{ "{:,.0f}".format(training.deal_value) }}</span>
                         {% else %}
                         <span class="text-muted">Not quoted</span>
                         {% endif %}
@@ -296,7 +296,7 @@
                                     <div class="stat-label">Trainees</div>
                                 </div>
                                 <div class="col-4">
-                                    <div class="stat-number text-info">${{ "{:,.0f}".format(trainings | sum(attribute='deal_value') or 0) }}</div>
+                                    <div class="stat-number text-info">AED {{ "{:,.0f}".format(trainings | sum(attribute='deal_value') or 0) }}</div>
                                     <div class="stat-label">Value</div>
                                 </div>
                             </div>

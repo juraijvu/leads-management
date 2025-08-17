@@ -46,7 +46,7 @@
                     <p><strong>Course Names:</strong> {{ course_names_list | join(', ') if course_names_list else 'Not specified' }}</p>
                     <p><strong>Trainees:</strong> {{ lead.trainee_count }}</p>
                     <p><strong>Training Mode:</strong> {{ lead.training_mode or 'Not specified' }}</p>
-                    <p><strong>Quotation Amount:</strong> ${{ "{:,.2f}".format(lead.quotation_amount) if lead.quotation_amount else 'Not quoted' }}</p>
+                    <p><strong>Quotation Amount:</strong> AED {{ "{:,.2f}".format(lead.quotation_amount) if lead.quotation_amount else 'Not quoted' }}</p>
                     <p><strong>Expected Start Date:</strong> {{ lead.expected_start_date.strftime('%Y-%m-%d') if lead.expected_start_date else 'Not specified' }}</p>
                     <p><strong>Budget Range:</strong> {{ lead.budget_range or 'Not specified' }}</p>
                     <p><strong>Status:</strong> {{ lead.status }}</p>

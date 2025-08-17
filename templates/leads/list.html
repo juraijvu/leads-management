@@ -125,7 +125,7 @@
                 <div class="col-md-3">
                     <label class="form-label small">Quote Range</label>
                     <div class="input-group">
-                        <span class="input-group-text">$</span>
+                        <span class="input-group-text">AED </span>
                         <input type="number" class="form-control" placeholder="Min" id="quoteMin">
                         <input type="number" class="form-control" placeholder="Max" id="quoteMax">
                     </div>
@@ -206,7 +206,7 @@
                 <div class="card-icon">
                     <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="stat-number counter" data-target="125000">$0</div>
+                <div class="stat-number counter" data-target="125000">AED 0</div>
                 <div class="stat-label">Pipeline Value</div>
                 <div class="stat-change text-success">
                     <i class="fas fa-arrow-up"></i> +18% this quarter
@@ -284,7 +284,7 @@
                     {% if lead.quoted_amount and lead.quoted_amount > 0 %}
                     <div class="metric-item">
                         <small class="text-muted">Quote Value</small>
-                        <div class="fw-bold text-success">${{ "{:,.0f}".format(lead.quoted_amount) }}</div>
+                        <div class="fw-bold text-success">AED {{ "{:,.0f}".format(lead.quoted_amount) }}</div>
                     </div>
                     {% endif %}
                     
@@ -409,7 +409,7 @@
                         </td>
                         <td>
                             {% if lead.quoted_amount and lead.quoted_amount > 0 %}
-                            <span class="fw-bold text-success">${{ "{:,.0f}".format(lead.quoted_amount) }}</span>
+                            <span class="fw-bold text-success">AED {{ "{:,.0f}".format(lead.quoted_amount) }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
@@ -474,7 +474,7 @@
                             {% endif %}
                             {% if lead.quoted_amount and lead.quoted_amount > 0 %}
                             <div class="text-success fw-bold">
-                                ${{ "{:,.0f}".format(lead.quoted_amount) }}
+                                AED {{ "{:,.0f}".format(lead.quoted_amount) }}
                             </div>
                             {% endif %}
                         </div>

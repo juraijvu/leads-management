@@ -45,7 +45,7 @@
                     <p><strong>Course Interest:</strong> {{ lead.course_interest.name if lead.course_interest else 'Not specified' }}</p>
                     <p><strong>Lead Source:</strong> {{ lead.lead_source or 'Not specified' }}</p>
                     <p><strong>Status:</strong> <span class="badge bg-{{ lead.status.lower() }}">{{ lead.status }}</span></p>
-                    <p><strong>Quoted Amount:</strong> ${{ "{:,.2f}".format(lead.quoted_amount) if lead.quoted_amount > 0 else 'Not quoted' }}</p>
+                    <p><strong>Quoted Amount:</strong> AED {{ "{:,.2f}".format(lead.quoted_amount) if lead.quoted_amount > 0 else 'Not quoted' }}</p>
                     <p><strong>Last Contact:</strong> {{ lead.last_contact_date.strftime('%Y-%m-%d') if lead.last_contact_date else 'Never' }}</p>
                     <p><strong>Next Follow-up:</strong> {{ lead.next_followup_date.strftime('%Y-%m-%d') if lead.next_followup_date else 'Not set' }}</p>
                     <p><strong>Follow-up Type:</strong> {{ lead.followup_type or 'Not specified' }}</p>
@@ -108,7 +108,7 @@
                             {% for quote in quotes %}
                             <tr>
                                 <td>{{ quote.course.name if quote.course else 'N/A' }}</td>
-                                <td>${{ "{:,.2f}".format(quote.quoted_amount) }}</td>
+                                <td>AED {{ "{:,.2f}".format(quote.quoted_amount) }}</td>
                                 <td>{{ quote.currency }}</td>
                                 <td>{{ quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else 'N/A' }}</td>
                                 <td>{{ quote.quote_notes or 'No notes' }}</td>

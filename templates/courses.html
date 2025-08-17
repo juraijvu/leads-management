@@ -68,7 +68,7 @@
         <div class="dashboard-card">
             <div class="stat-card">
                 <div class="stat-number text-warning">
-                    ${% set total_value = 0 %}
+                    AED {% set total_value = 0 %}
                     {% for course in courses %}
                         {% set total_value = total_value + course.price %}
                     {% endfor %}
@@ -175,7 +175,7 @@
                     <div class="row text-center mb-3">
                         <div class="col-4">
                             <div class="detail-item">
-                                <div class="fw-bold text-success">${{ "{:,.0f}".format(course.price) }}</div>
+                                <div class="fw-bold text-success">AED {{ "{:,.0f}".format(course.price) }}</div>
                                 <small class="text-muted">Price</small>
                             </div>
                         </div>
@@ -278,7 +278,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span class="fw-bold text-success">${{ "{:,.2f}".format(course.price) }}</span>
+                        <span class="fw-bold text-success">AED {{ "{:,.2f}".format(course.price) }}</span>
                     </td>
                     <td>{{ course.duration or 'Not specified' }}</td>
                     <td>
@@ -479,7 +479,7 @@ async function viewCourse(courseId) {
                     <div class="row mb-4">
                         <div class="col-md-3">
                             <div class="stat-card text-center">
-                                <div class="stat-number text-success">$${courseData.price?.toLocaleString() || '0'}</div>
+                                <div class="stat-number text-success">AED ${courseData.price?.toLocaleString() || '0'}</div>
                                 <div class="stat-label">Course Price</div>
                             </div>
                         </div>
@@ -533,7 +533,7 @@ async function viewCourse(courseId) {
                     <div class="analytics-stats">
                         <div class="d-flex justify-content-between py-2 border-bottom">
                             <span>Total Revenue</span>
-                            <span class="fw-bold text-success">$${(courseData.price * courseData.students_count).toLocaleString() || '0'}</span>
+                            <span class="fw-bold text-success">AED ${(courseData.price * courseData.students_count).toLocaleString() || '0'}</span>
                         </div>
                         <div class="d-flex justify-content-between py-2 border-bottom">
                             <span>Leads Interested</span>

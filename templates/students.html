@@ -61,7 +61,7 @@
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="dashboard-card">
             <div class="stat-card">
-                <div class="stat-number text-primary">${{ "{:,.0f}".format(students | sum(attribute='fee_paid') if students else 0) }}</div>
+                <div class="stat-number text-primary">AED {{ "{:,.0f}".format(students | sum(attribute='fee_paid') if students else 0) }}</div>
                 <div class="stat-label">Total Revenue</div>
             </div>
         </div>
@@ -220,7 +220,7 @@
                         {% set payment_percentage = (student.fee_paid / student.total_fee * 100) if student.total_fee > 0 else 0 %}
                         <div class="payment-status">
                             <div class="fw-bold {{ 'text-success' if payment_percentage == 100 else 'text-warning' if payment_percentage > 0 else 'text-danger' }}">
-                                ${{ "{:,.0f}".format(student.fee_paid) }} / ${{ "{:,.0f}".format(student.total_fee) }}
+                                AED {{ "{:,.0f}".format(student.fee_paid) }} / ${{ "{:,.0f}".format(student.total_fee) }}
                             </div>
                             <small class="text-muted">
                                 {{ "{:.0f}".format(payment_percentage) }}% paid

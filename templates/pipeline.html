@@ -38,7 +38,7 @@
         <div class="dashboard-card">
             <div class="stat-card">
                 <div class="stat-number text-warning" id="pipeline-value">
-                    ${{ "{:,.0f}".format(pipeline_data.values() | sum(attribute='total_value')) }}
+                    AED {{ "{:,.0f}".format(pipeline_data.values() | sum(attribute='total_value')) }}
                 </div>
                 <div class="stat-label">Pipeline Value</div>
             </div>
@@ -51,7 +51,7 @@
                 <div class="stat-number text-info" id="avg-deal-size">
                     {% set total_value = pipeline_data.values() | sum(attribute='total_value') %}
                     {% set total_leads = pipeline_data.values() | sum(attribute='count') %}
-                    ${{ "{:,.0f}".format(total_value / total_leads) if total_leads > 0 else 0 }}
+                    AED {{ "{:,.0f}".format(total_value / total_leads) if total_leads > 0 else 0 }}
                 </div>
                 <div class="stat-label">Avg Deal Size</div>
             </div>
