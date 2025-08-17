@@ -24,8 +24,8 @@ def generate_slug(text):
 def format_currency(amount):
     """Format amount as currency"""
     if amount is None:
-        return "$0.00"
-    return f"${amount:,.2f}"
+        return "AED 0.00"
+    return f"AED{amount:,.2f}"
 
 def format_phone(phone):
     """Format phone number for display"""
